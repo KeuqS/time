@@ -5,6 +5,9 @@ const staticCheckIgnorePatterns = [".github/**", "*.md", "**/*.md"];
 const invalidBoundaryFixturePattern = "tests/fixtures/dependency-boundaries/**";
 
 export default defineConfig({
+  resolve: {
+    tsconfigPaths: true,
+  },
   staged: {
     "*": "vp check --fix",
   },
