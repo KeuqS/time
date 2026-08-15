@@ -8,9 +8,11 @@ catalogMode: prefer
 catalog:
   "@dnd-kit/dom": 0.1.21
   "@dnd-kit/react": 0.1.21
+  "@flatten-js/interval-tree": ^2.0.3
   "@types/node": ^24
   "@types/react": ^19.2.18
   "@types/react-dom": ^19.2.4
+  fast-check: ^4.9.0
   happy-dom: 20.11.2
   react: 19.2.4
   react-dom: 19.2.4
