@@ -1,0 +1,28 @@
+{
+  "name": "@moltenship/resource-virtualization-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vp build",
+    "check": "vp check",
+    "dev": "vp dev --host 0.0.0.0",
+    "preview": "vp preview --host 0.0.0.0",
+    "test": "vp test",
+    "test:ssr": "vp test tests/ssr.test.tsx tests/hydration.test.tsx"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "3.14.9",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "catalog:",
+    "jsdom": "30.0.1",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
