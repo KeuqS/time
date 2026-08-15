@@ -17,7 +17,7 @@
 
 Checksums and matched-value counts agree for scan and tree in both query workloads: yes.
 
-Decision gate: **retain the candidate behind the replaceable seam**. The gate requires exact reference agreement, indexed p95 below 1 ms, and the tree to beat the scan p95 for both one-day and seven-day visible ranges.
+Decision gate: **retain the candidate behind the replaceable seam**. The gate requires exact reference agreement, tree build p95 below 25 ms, indexed p95 below 1 ms, and the tree to beat the scan p95 for both one-day and seven-day visible ranges.
 
 This is one local evidence run, not a portable device threshold. Issue #24 must
 repeat it in the production benchmark harness and on the recorded reference

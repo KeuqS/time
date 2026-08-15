@@ -9,6 +9,11 @@ import {
   type IntervalIndex,
   type IntervalIndexEntry,
 } from "../src/interval-index.ts";
+import {
+  candidateSurvivesBenchmark,
+  TREE_BUILD_P95_LIMIT_MS,
+  TREE_QUERY_P95_LIMIT_MS,
+} from "../src/benchmark-verdict.ts";
 import { indexEntries, seededEvents, seededQueries } from "../src/seeded-data.ts";
 
 type IndexKind = "scan" | "tree";
@@ -182,7 +187,7 @@ ${rows.join("\n")}
 
 Checksums and matched-value counts agree for scan and tree in both query workloads: ${report.referenceAgreement ? "yes" : "no"}.
 
-Decision gate: **${report.candidateSurvives ? "retain the candidate behind the replaceable seam" : "reject the candidate and keep the scan reference"}**. The gate requires exact reference agreement, indexed p95 below 1 ms, and the tree to beat the scan p95 for both one-day and seven-day visible ranges.
+Decision gate: **${report.candidateSurvives ? "retain the candidate behind the replaceable seam" : "reject the candidate and keep the scan reference"}**. The gate requires exact reference agreement, tree build p95 below ${TREE_BUILD_P95_LIMIT_MS} ms, indexed p95 below ${TREE_QUERY_P95_LIMIT_MS} ms, and the tree to beat the scan p95 for both one-day and seven-day visible ranges.
 `;
 }
 
@@ -211,12 +216,18 @@ function runBenchmark() {
       queries[duration].scan.checksum === queries[duration].tree.checksum &&
       queries[duration].scan.matchedValues === queries[duration].tree.matchedValues,
   );
-  const candidateSurvives =
-    referenceAgreement &&
-    (["1d", "7d"] as const).every(
-      (duration) =>
-        queries[duration].tree.p95 < 1 && queries[duration].tree.p95 < queries[duration].scan.p95,
-    );
+  const build = {
+    scan: measureBuild("scan", entries),
+    tree: measureBuild("tree", entries),
+  };
+  const candidateSurvives = candidateSurvivesBenchmark({
+    referenceAgreement,
+    treeBuildP95: build.tree.p95,
+    queries: {
+      "1d": { scanP95: queries["1d"].scan.p95, treeP95: queries["1d"].tree.p95 },
+      "7d": { scanP95: queries["7d"].scan.p95, treeP95: queries["7d"].tree.p95 },
+    },
+  });
 
   return {
     schemaVersion: 1,
@@ -235,10 +246,10 @@ function runBenchmark() {
     },
     build: {
       scan: Object.fromEntries(
-        Object.entries(measureBuild("scan", entries)).map(([key, value]) => [key, round(value)]),
+        Object.entries(build.scan).map(([key, value]) => [key, round(value)]),
       ) as unknown as Distribution,
       tree: Object.fromEntries(
-        Object.entries(measureBuild("tree", entries)).map(([key, value]) => [key, round(value)]),
+        Object.entries(build.tree).map(([key, value]) => [key, round(value)]),
       ) as unknown as Distribution,
     },
     queries: Object.fromEntries(
