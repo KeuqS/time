@@ -1,0 +1,20 @@
+{
+  "name": "@moltenship/interval-dst-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "test": "node --harmony-temporal --test node-tests/*.node.ts",
+    "benchmark": "node --harmony-temporal --expose-gc scripts/benchmark.ts",
+    "fixtures": "node --harmony-temporal scripts/write-dst-fixtures.ts"
+  },
+  "dependencies": {
+    "@flatten-js/interval-tree": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "fast-check": "catalog:",
+    "typescript": "7.0.2"
+  }
+}
