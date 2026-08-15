@@ -6,7 +6,14 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@dnd-kit/dom": 0.1.21
+  "@dnd-kit/react": 0.1.21
   "@types/node": ^24
+  "@types/react": ^19.2.18
+  "@types/react-dom": ^19.2.4
+  happy-dom: 20.11.2
+  react: 19.2.4
+  react-dom: 19.2.4
   typescript: ^7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@0.2.6
   vite-plus: 0.2.6

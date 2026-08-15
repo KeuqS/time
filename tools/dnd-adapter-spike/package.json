@@ -1,0 +1,24 @@
+{
+  "name": "@moltenship/dnd-adapter-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json && vp build",
+    "test": "vp test",
+    "trace": "vp test --run tests/interaction-trace.spike.tsx --reporter=verbose"
+  },
+  "dependencies": {
+    "@dnd-kit/dom": "catalog:",
+    "@dnd-kit/react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
+    "typescript": "7.0.2"
+  }
+}
