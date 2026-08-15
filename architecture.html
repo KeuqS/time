@@ -1781,7 +1781,9 @@
           <li><a href="#roadmap" data-index="13">Roadmap</a></li>
           <li><a href="#invariants" data-index="14">Invariants</a></li>
         </ol>
-        <div class="nav-footnote">React 19+<br />Native Temporal<br />ISO chronology · v1</div>
+        <div class="nav-footnote">
+          React 19+<br />Native Temporal<br />Node.js 26+<br />Current TypeScript · ESNext
+        </div>
       </aside>
 
       <main id="main-content">
@@ -2007,7 +2009,7 @@
             <tbody>
               <tr>
                 <td>calendar-temporal</td>
-                <td>Native Temporal and Intl only</td>
+                <td>ESNext global Temporal and Intl only</td>
                 <td>React, Date, DOM, locale bundles</td>
               </tr>
               <tr>
@@ -2170,6 +2172,15 @@
               Day and week axes show wall time. Gaps and folds remain explicit geometry. The default
               Temporal disambiguation is <code>compatible</code>; policies may reject it, and
               automatic shifts are included in the transaction and announcement.
+            </div>
+          </div>
+
+          <div class="policy-note">
+            <b>TypeScript</b>
+            <div>
+              The current TypeScript compiler with <code>lib: ["ESNext"]</code> supplies the ambient
+              Temporal namespace. Packages use the global directly and neither depend on nor
+              re-export a separate Temporal type package.
             </div>
           </div>
         </section>
