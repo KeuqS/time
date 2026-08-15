@@ -138,9 +138,10 @@ export type ValidatedCalendarEventInterval<TInterval> = TInterval & {
   readonly [validatedCalendarEventInterval]: true;
 };
 
-export type ValidatedCalendarEvent<TEvent extends CalendarEvent> = TEvent & {
-  readonly [validatedCalendarEvent]: true;
-};
+export type ValidatedCalendarEvent<TEvent extends CalendarEvent<unknown, EventId, ResourceId>> =
+  TEvent & {
+    readonly [validatedCalendarEvent]: true;
+  };
 
 export type CalendarEventContractValidation<TValue> =
   | { readonly valid: true; readonly value: TValue }
@@ -190,7 +191,7 @@ export function validateCalendarEventInterval<
   };
 }
 
-export function validateCalendarEvent<TEvent extends CalendarEvent>(
+export function validateCalendarEvent<TEvent extends CalendarEvent<unknown, EventId, ResourceId>>(
   event: TEvent,
 ): CalendarEventContractValidation<ValidatedCalendarEvent<TEvent>> {
   const issues: CalendarEventValidationIssue[] = [];

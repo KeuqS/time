@@ -7,6 +7,7 @@ import {
   defineEventAdapter,
   isEventId,
   isResourceId,
+  validateCalendarEvent,
   validateCalendarEventInterval,
   type AllDayCalendarEvent,
   type CalendarEnvironment,
@@ -20,6 +21,7 @@ import {
   type EventAdapter,
   type FloatingCalendarEvent,
   type TimedCalendarEvent,
+  type ValidatedCalendarEvent,
 } from "../src/index.ts";
 
 declare const apiEventIdBrand: unique symbol;
@@ -124,6 +126,56 @@ describe("canonical contracts", () => {
     expect(validateNumericInterval({ end: 2, kind: "floating", start: 1 })).toMatchObject({
       valid: true,
     });
+  });
+
+  test("validates canonical events with branded numeric IDs", () => {
+    type NumericEventId = number & { readonly [apiEventIdBrand]: "NumericEventId" };
+    const start = { order: 1 } as unknown as Temporal.Instant;
+    const end = { order: 2 } as unknown as Temporal.Instant;
+    const event = {
+      data: { source: "api" },
+      end,
+      id: 7 as NumericEventId,
+      kind: "timed",
+      resourceIds: [12 as RoomId],
+      start,
+      title: "Numeric canonical event",
+    } satisfies TimedCalendarEvent<{ readonly source: string }, NumericEventId, RoomId>;
+    const runtimeGlobal = globalThis as typeof globalThis & {
+      Temporal?: {
+        readonly Instant: {
+          compare(left: Temporal.Instant, right: Temporal.Instant): number;
+        };
+      };
+    };
+    const originalTemporal = Object.getOwnPropertyDescriptor(runtimeGlobal, "Temporal");
+
+    Object.defineProperty(runtimeGlobal, "Temporal", {
+      configurable: true,
+      value: {
+        Instant: {
+          compare: (left: Temporal.Instant, right: Temporal.Instant) =>
+            (left as unknown as { readonly order: number }).order -
+            (right as unknown as { readonly order: number }).order,
+        },
+      },
+    });
+
+    try {
+      const validation = validateCalendarEvent(event);
+
+      expect(validation).toMatchObject({ valid: true });
+      if (validation.valid) {
+        expect(validation.value).toBe(event);
+        expectTypeOf(validation.value).toEqualTypeOf<ValidatedCalendarEvent<typeof event>>();
+      }
+    } finally {
+      if (originalTemporal) {
+        Object.defineProperty(runtimeGlobal, "Temporal", originalTemporal);
+      } else {
+        Reflect.deleteProperty(runtimeGlobal, "Temporal");
+      }
+    }
   });
 
   test("reports empty and reversed event intervals explicitly", () => {
