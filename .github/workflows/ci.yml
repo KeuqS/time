@@ -34,11 +34,11 @@ jobs:
       - name: Format, lint, and type checks
         run: vp run ci:check
 
-      - name: Root and workspace tests
-        run: vp run ci:test
-
       - name: Recursive production builds
         run: vp run ci:build
+
+      - name: Root and workspace tests
+        run: vp run ci:test
 
       - name: SSR render, hydrate, interact, and unmount
         run: vp run ssr:smoke

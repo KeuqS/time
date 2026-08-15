@@ -22,8 +22,8 @@ interface Workflow {
 const expectedGateCommands = [
   "vp install --frozen-lockfile",
   "vp run ci:check",
-  "vp run ci:test",
   "vp run ci:build",
+  "vp run ci:test",
   "vp run ssr:smoke",
   "vp run registry:smoke",
   "vp run package:graph",

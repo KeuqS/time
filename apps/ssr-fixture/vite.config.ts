@@ -3,7 +3,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   pack: {
     deps: { onlyBundle: false },
-    dts: { tsgo: true },
+    dts: false,
     entry: ["src/index.ts"],
   },
   lint: { options: { typeAware: true, typeCheck: true } },
