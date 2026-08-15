@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "recordedAt": "2026-08-15T11:52:52+04:00",
-  "baselineCommit": "046c734",
-  "measuredCommit": "794480c497b1",
+  "recordedAt": "2026-08-15T12:04:33+04:00",
+  "baselineCommit": "e672bc6",
+  "measuredCommit": "4a617f86e228",
   "command": "vp run @moltenship/dnd-adapter-spike#trace",
   "environment": {
     "os": "macOS 26.5.1 (25F80)",
@@ -11,7 +11,7 @@
     "node": "24.19.0",
     "vitePlus": "0.2.6",
     "vitest": "4.1.10",
-    "react": "19.2.4",
+    "react": "19.2.7",
     "dndKitReact": "0.1.21",
     "dndKitDom": "0.1.21",
     "domEnvironment": "happy-dom 20.11.2"
@@ -19,7 +19,7 @@
   "interaction": {
     "pointerMoves": 240,
     "calendarReactCommits": 0,
-    "pointerScriptingP95Ms": 0.035,
+    "pointerScriptingP95Ms": 0.0407,
     "pointerTouchKeyboardProposalsEquivalent": true,
     "droppableSurfaces": 1,
     "configuredSensors": 2,
