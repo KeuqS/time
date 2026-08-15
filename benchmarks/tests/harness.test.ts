@@ -70,3 +70,117 @@ describe("benchmark protocol", () => {
     expect(benchmarkExitCode(report, false)).toBe(0);
   });
 });
+
+describe("reference layout", () => {
+  test("orders equal starts by longer duration and then stable ID", () => {
+    const layout = referenceEngine.layout([
+      {
+        endUnit: 20,
+        eventId: "short",
+        key: "short",
+        resourceId: "resource",
+        startUnit: 10,
+      },
+      {
+        endUnit: 30,
+        eventId: "long-b",
+        key: "long-b",
+        resourceId: "resource",
+        startUnit: 10,
+      },
+      {
+        endUnit: 30,
+        eventId: "long-a",
+        key: "long-a",
+        resourceId: "resource",
+        startUnit: 10,
+      },
+    ]);
+
+    expect(layout).toEqual([
+      {
+        endUnit: 30,
+        eventId: "long-a",
+        key: "long-a",
+        lane: 0,
+        laneCount: 3,
+        resourceId: "resource",
+        startUnit: 10,
+      },
+      {
+        endUnit: 30,
+        eventId: "long-b",
+        key: "long-b",
+        lane: 1,
+        laneCount: 3,
+        resourceId: "resource",
+        startUnit: 10,
+      },
+      {
+        endUnit: 20,
+        eventId: "short",
+        key: "short",
+        lane: 2,
+        laneCount: 3,
+        resourceId: "resource",
+        startUnit: 10,
+      },
+    ]);
+  });
+
+  test("resets lane count for each half-open collision group", () => {
+    const layout = referenceEngine.layout([
+      {
+        endUnit: 20,
+        eventId: "overlap-a",
+        key: "overlap-a",
+        resourceId: "resource",
+        startUnit: 0,
+      },
+      {
+        endUnit: 30,
+        eventId: "overlap-b",
+        key: "overlap-b",
+        resourceId: "resource",
+        startUnit: 10,
+      },
+      {
+        endUnit: 40,
+        eventId: "isolated",
+        key: "isolated",
+        resourceId: "resource",
+        startUnit: 30,
+      },
+    ]);
+
+    expect(layout).toEqual([
+      {
+        endUnit: 20,
+        eventId: "overlap-a",
+        key: "overlap-a",
+        lane: 0,
+        laneCount: 2,
+        resourceId: "resource",
+        startUnit: 0,
+      },
+      {
+        endUnit: 30,
+        eventId: "overlap-b",
+        key: "overlap-b",
+        lane: 1,
+        laneCount: 2,
+        resourceId: "resource",
+        startUnit: 10,
+      },
+      {
+        endUnit: 40,
+        eventId: "isolated",
+        key: "isolated",
+        lane: 0,
+        laneCount: 1,
+        resourceId: "resource",
+        startUnit: 30,
+      },
+    ]);
+  });
+});

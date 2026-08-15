@@ -63,27 +63,43 @@ function layoutReference(projection: readonly BenchmarkProjection[]): readonly B
     (left, right) =>
       left.resourceId.localeCompare(right.resourceId) ||
       left.startUnit - right.startUnit ||
-      left.endUnit - right.endUnit ||
+      right.endUnit - right.startUnit - (left.endUnit - left.startUnit) ||
       left.key.localeCompare(right.key),
   );
-  const laneEnds = new Map<string, number[]>();
-  const provisional: Array<BenchmarkProjection & { lane: number }> = [];
+  const layout: BenchmarkLayout[] = [];
+  let collisionGroup: Array<BenchmarkProjection & { lane: number }> = [];
+  let collisionGroupEnd = Number.NEGATIVE_INFINITY;
+  let currentResourceId: string | undefined;
+  let laneEnds: number[] = [];
+
+  const flushCollisionGroup = () => {
+    const laneCount = Math.max(1, laneEnds.length);
+    for (const item of collisionGroup) {
+      layout.push({ ...item, laneCount });
+    }
+    collisionGroup = [];
+    laneEnds = [];
+  };
 
   for (const item of ordered) {
-    const resourceLaneEnds = laneEnds.get(item.resourceId) ?? [];
-    let lane = resourceLaneEnds.findIndex((endUnit) => endUnit <= item.startUnit);
-    if (lane === -1) {
-      lane = resourceLaneEnds.length;
+    if (item.resourceId !== currentResourceId || item.startUnit >= collisionGroupEnd) {
+      flushCollisionGroup();
+      currentResourceId = item.resourceId;
+      collisionGroupEnd = item.endUnit;
+    } else {
+      collisionGroupEnd = Math.max(collisionGroupEnd, item.endUnit);
     }
-    resourceLaneEnds[lane] = item.endUnit;
-    laneEnds.set(item.resourceId, resourceLaneEnds);
-    provisional.push({ ...item, lane });
+
+    let lane = laneEnds.findIndex((endUnit) => endUnit <= item.startUnit);
+    if (lane === -1) {
+      lane = laneEnds.length;
+    }
+    laneEnds[lane] = item.endUnit;
+    collisionGroup.push({ ...item, lane });
   }
 
-  return provisional.map((item) => ({
-    ...item,
-    laneCount: laneEnds.get(item.resourceId)?.length ?? 1,
-  }));
+  flushCollisionGroup();
+  return layout;
 }
 
 function renderReference(layout: readonly BenchmarkLayout[]): readonly BenchmarkRenderModel[] {
