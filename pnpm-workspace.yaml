@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - benchmarks
   - packages/*
   - tools/*
 
@@ -22,6 +23,10 @@ catalog:
   vite-plus: 0.2.6
 overrides:
   vite: "catalog:"
+packageExtensions:
+  "dependency-cruiser@18.2.0":
+    dependencies:
+      typescript: 6.0.3
 peerDependencyRules:
   allowAny:
     - vite
