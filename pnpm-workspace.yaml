@@ -6,7 +6,9 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@flatten-js/interval-tree": ^2.0.3
   "@types/node": ^24
+  fast-check: ^4.9.0
   typescript: ^7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@0.2.6
   vite-plus: 0.2.6
