@@ -1,0 +1,23 @@
+{
+  "name": "benchmark",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal core and React benchmark runners for Moltenship Time.",
+  "type": "module",
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "test": "vp test --passWithNoTests"
+  },
+  "dependencies": {
+    "@moltenship/calendar-core": "workspace:*",
+    "@moltenship/calendar-react": "workspace:*",
+    "fixtures": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
