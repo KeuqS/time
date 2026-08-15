@@ -1,0 +1,8 @@
+:root {
+  --calendar-grid: oklch(0.92 0.01 250);
+  --calendar-event: var(--primary);
+}
+
+.dark {
+  --calendar-grid: oklch(0.3 0.01 250);
+}

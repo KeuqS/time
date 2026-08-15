@@ -1,0 +1,31 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "calendar-theme-contract",
+  "type": "registry:theme",
+  "title": "Calendar theme contract fixture",
+  "description": "Validates source, target, dependency, token, and compatibility rules.",
+  "dependencies": ["@moltenship/calendar@0.0.0"],
+  "registryDependencies": ["button"],
+  "files": [
+    {
+      "path": "tools/registry/fixtures/valid/calendar-theme.css",
+      "type": "registry:file",
+      "target": "src/styles/calendar-theme.css"
+    }
+  ],
+  "cssVars": {
+    "light": {
+      "calendar-grid": "oklch(0.92 0.01 250)",
+      "calendar-event": "var(--primary)"
+    },
+    "dark": {
+      "calendar-grid": "oklch(0.3 0.01 250)",
+      "calendar-event": "var(--primary)"
+    }
+  },
+  "meta": {
+    "compatibility": {
+      "@moltenship/calendar": ">=0.0.0"
+    }
+  }
+}

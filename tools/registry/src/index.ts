@@ -1,2 +1,8 @@
-// Registry schema and build verification are implemented by the registry harness issue.
-export {};
+export {
+  validateRegistryItemFile,
+  validateRegistryWorkspace,
+  type RegistryItemValidation,
+  type RegistryValidationOptions,
+  type RegistryValidationIssue,
+  type RegistryValidationReport,
+} from "./validation.ts";
