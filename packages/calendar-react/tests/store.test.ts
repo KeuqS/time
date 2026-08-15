@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
-import { createCalendarStore, type CalendarStore } from "../src/index.js";
+import { createCalendarStore, type CalendarStore } from "../src/index.ts";
 
 type ViewName = "agenda" | "month" | "week";
 
