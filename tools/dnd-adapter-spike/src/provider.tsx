@@ -51,6 +51,16 @@ interface InternalDragData<TEvent, TResourceId extends CalendarEntityId> extends
 
 interface InternalAnnouncementOperation {
   readonly source: { readonly data: Record<string, unknown> } | null;
+  readonly position: {
+    readonly initial: CalendarPoint;
+    readonly current: CalendarPoint;
+  };
+}
+
+interface InternalDragMoveEvent {
+  readonly operation: InternalAnnouncementOperation;
+  readonly nativeEvent?: Event;
+  readonly to?: CalendarPoint;
 }
 
 function isInternalDragData<TEvent, TResourceId extends CalendarEntityId>(
@@ -63,10 +73,6 @@ function inputFromEvent(event: Event | null | undefined): CalendarInteractionInp
   if (event instanceof KeyboardEvent) return "keyboard";
   if (event instanceof PointerEvent && event.pointerType === "touch") return "touch";
   return "pointer";
-}
-
-function eventPoint(event: Event | null | undefined, fallback: CalendarPoint): CalendarPoint {
-  return event instanceof PointerEvent ? { x: event.clientX, y: event.clientY } : fallback;
 }
 
 class CalendarDragController<TEvent, TResourceId extends CalendarEntityId> {
@@ -111,7 +117,8 @@ class CalendarDragController<TEvent, TResourceId extends CalendarEntityId> {
     this.#session.start(source, input, point);
   }
 
-  move(point: CalendarPoint, nativeEvent: Event | null | undefined): void {
+  move(event: InternalDragMoveEvent): void {
+    const { nativeEvent, operation, to } = event;
     if (this.#session.input === "keyboard") {
       if (nativeEvent instanceof KeyboardEvent) {
         this.#session.moveKeyboard(nativeEvent.code);
@@ -119,6 +126,7 @@ class CalendarDragController<TEvent, TResourceId extends CalendarEntityId> {
       return;
     }
 
+    const point = to ?? operation.position.current;
     this.#session.movePointer(point);
     this.#autoScroller.update(point);
   }
@@ -142,14 +150,24 @@ class CalendarDragController<TEvent, TResourceId extends CalendarEntityId> {
   announcement(
     kind: "started" | "moved" | "completed" | "canceled",
     source: CalendarDragSource<TEvent, TResourceId> | null,
+    change: CalendarEventChange<TEvent, TResourceId> | null = this.#session.currentChange(),
   ): string | undefined {
     const activeSource = source ?? this.#session.activeSource;
     const messages = this.#messages;
     if (!activeSource || !messages) return undefined;
     return messages[kind]({
       source: activeSource,
-      change: this.#session.currentChange(),
+      change,
     });
+  }
+
+  movedAnnouncement(event: InternalDragMoveEvent): string | undefined {
+    const { nativeEvent, operation, to } = event;
+    const change =
+      this.#session.input === "keyboard" && nativeEvent instanceof KeyboardEvent
+        ? this.#session.previewKeyboard(nativeEvent.code)
+        : this.#session.previewPointer(to ?? operation.position.current);
+    return this.announcement("moved", null, change);
   }
 }
 
@@ -234,7 +252,7 @@ export function CalendarDragProvider<TEvent, TResourceId extends CalendarEntityI
               isInternalDragData<TEvent, TResourceId>(data) ? data.source : null,
             );
           },
-          dragmove: () => controller.announcement("moved", null),
+          dragmove: (event: InternalDragMoveEvent) => controller.movedAnnouncement(event),
           dragend: ({
             operation,
             canceled,
@@ -271,12 +289,10 @@ export function CalendarDragProvider<TEvent, TResourceId extends CalendarEntityI
           controller.start(
             data.source,
             inputFromEvent(nativeEvent ?? operation.activatorEvent),
-            eventPoint(nativeEvent ?? operation.activatorEvent, operation.position.current),
+            operation.position.initial,
           );
         }}
-        onDragMove={({ operation, nativeEvent, to }) => {
-          controller.move(to ?? operation.position.current, nativeEvent);
-        }}
+        onDragMove={(event) => controller.move(event)}
         onDragEnd={({ canceled }) => controller.finish(canceled)}
       >
         {children}

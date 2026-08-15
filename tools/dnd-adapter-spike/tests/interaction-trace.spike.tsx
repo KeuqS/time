@@ -42,7 +42,7 @@ const messages: CalendarDragMessages<TestEvent, string> = {
   instructions: "Use the arrow keys to move the event.",
   started: ({ source }) => `Started ${source.title}`,
   moved: ({ source, change }) =>
-    `Moved ${source.title} to minute ${change?.proposed.startMinute ?? source.placement.startMinute}`,
+    `Moved ${source.title} to minute ${change?.proposed.startMinute ?? source.placement.startMinute} in ${String(change?.proposed.resourceId ?? source.placement.resourceId)}`,
   completed: ({ source }) => `Committed ${source.title}`,
   canceled: ({ source }) => `Canceled ${source.title}`,
 };
@@ -212,6 +212,15 @@ async function settleStoppedDrag(manager: DndDragDropManager): Promise<void> {
   expect(manager.dragOperation.status.idle).toBe(true);
 }
 
+async function settleStartedDrag(manager: DndDragDropManager): Promise<void> {
+  for (let pass = 0; pass < 10 && !manager.dragOperation.status.dragging; pass += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+  expect(manager.dragOperation.status.dragging).toBe(true);
+}
+
 async function flushAnimationFrame(): Promise<void> {
   await act(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -222,6 +231,73 @@ function p95(samples: readonly number[]): number {
   const sorted = samples.toSorted((left, right) => left - right);
   return sorted[Math.floor(sorted.length * 0.95)] ?? 0;
 }
+
+test("configured sensors retain pointer-down movement and announce the current placement", async () => {
+  const changes: CalendarEventChange<TestEvent, string>[] = [];
+  const manager = await renderHarness(
+    (change) => changes.push(change),
+    () => {},
+  );
+  const button = document.querySelector("button");
+  if (!(button instanceof HTMLButtonElement)) throw new Error("draggable button was not rendered");
+
+  await act(async () => {
+    button.dispatchEvent(pointerEvent("pointerdown", 50, 60));
+    document.dispatchEvent(pointerEvent("pointermove", 50, 95));
+    await Promise.resolve();
+  });
+  await settleStartedDrag(manager);
+
+  await act(async () => {
+    document.dispatchEvent(pointerEvent("pointermove", 50, 96));
+    await Promise.resolve();
+  });
+  await flushAnimationFrame();
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 550));
+  });
+  expect(document.querySelector('[role="status"]')?.textContent).toBe(
+    "Moved Planning to minute 90 in alpha",
+  );
+
+  await act(async () => {
+    document.dispatchEvent(pointerEvent("pointerup", 50, 96));
+    await Promise.resolve();
+  });
+  await settleStoppedDrag(manager);
+  expect(changes.at(-1)?.proposed).toEqual({
+    startMinute: 90,
+    endMinute: 150,
+    resourceId: "alpha",
+  });
+
+  await act(async () => {
+    button.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "Space" }));
+    await Promise.resolve();
+  });
+  await settleStartedDrag(manager);
+  await act(async () => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "ArrowDown" }));
+    await Promise.resolve();
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 550));
+  });
+  expect(document.querySelector('[role="status"]')?.textContent).toBe(
+    "Moved Planning to minute 90 in alpha",
+  );
+
+  await act(async () => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "Enter" }));
+    await Promise.resolve();
+  });
+  await settleStoppedDrag(manager);
+  expect(changes.at(-1)?.proposed).toEqual({
+    startMinute: 90,
+    endMinute: 150,
+    resourceId: "alpha",
+  });
+});
 
 test("pointer/touch/keyboard share proposals with zero calendar commits on pointer move", async () => {
   const changes: CalendarEventChange<TestEvent, string>[] = [];

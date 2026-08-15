@@ -64,6 +64,17 @@ export class CalendarSemanticDragSession<TEvent, TResourceId extends CalendarEnt
     return this.#change(active);
   }
 
+  previewPointer(point: CalendarPoint): CalendarEventChange<TEvent, TResourceId> | null {
+    const active = this.#active;
+    const geometry = this.#getGeometry();
+    if (!active || !geometry) return null;
+
+    return this.#change(
+      active,
+      geometry.placementFromPointer(active.source.placement, active.initialPoint, point),
+    );
+  }
+
   moveKeyboard(code: string): CalendarEventChange<TEvent, TResourceId> | null {
     const active = this.#active;
     const geometry = this.#getGeometry();
@@ -71,6 +82,14 @@ export class CalendarSemanticDragSession<TEvent, TResourceId extends CalendarEnt
 
     active.proposed = geometry.placementFromKeyboard(active.proposed, code);
     return this.#change(active);
+  }
+
+  previewKeyboard(code: string): CalendarEventChange<TEvent, TResourceId> | null {
+    const active = this.#active;
+    const geometry = this.#getGeometry();
+    if (!active || !geometry) return null;
+
+    return this.#change(active, geometry.placementFromKeyboard(active.proposed, code));
   }
 
   currentChange(): CalendarEventChange<TEvent, TResourceId> | null {
@@ -87,14 +106,17 @@ export class CalendarSemanticDragSession<TEvent, TResourceId extends CalendarEnt
     this.#active = null;
   }
 
-  #change(active: ActiveSession<TEvent, TResourceId>): CalendarEventChange<TEvent, TResourceId> {
+  #change(
+    active: ActiveSession<TEvent, TResourceId>,
+    proposed = active.proposed,
+  ): CalendarEventChange<TEvent, TResourceId> {
     return {
       id: `${String(active.source.eventId)}:${active.sequence}`,
       cause: active.input === "keyboard" ? "keyboard" : "move",
       input: active.input,
       event: active.source.event,
       original: active.source.placement,
-      proposed: active.proposed,
+      proposed,
       validation: { status: "valid", reasons: [] },
       sourceView: active.source.sourceView,
     };
