@@ -1,0 +1,29 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "known-bad-calendar",
+  "type": "registry:item",
+  "dependencies": ["workspace:*"],
+  "registryDependencies": ["../button"],
+  "files": [
+    {
+      "path": "tools/registry/fixtures/known-bad/source.ts",
+      "type": "registry:file",
+      "target": "../outside-consumer.ts"
+    },
+    {
+      "path": "tools/registry/fixtures/known-bad/missing.ts",
+      "type": "registry:component"
+    }
+  ],
+  "cssVars": {
+    "light": {
+      "calendarBad": "red",
+      "calendar-event": ""
+    }
+  },
+  "meta": {
+    "compatibility": {
+      "react": "latest"
+    }
+  }
+}
