@@ -4,9 +4,9 @@ This document turns the dependency law in [architecture.md](../architecture.md) 
 ownership. A workspace may import only the public entry points of workspaces listed in its
 `dependencies`; importing another workspace's `src/` tree is always invalid.
 
-The skeleton entry points are intentionally empty until their owning implementation issues land.
-They establish build, publication, and dependency boundaries without freezing speculative calendar
-APIs.
+Entry points expose only contracts approved by their owning implementation issues. Calendar core
+and Temporal now expose the canonical foundation contracts; the remaining workspaces stay empty
+until their implementation and validation issues land.
 
 Publishable workspaces expose `src/index.ts` inside the checkout so declared package imports work
 before any ignored build output exists. pnpm applies each package's `publishConfig.exports` while
@@ -34,6 +34,10 @@ packing, replacing that development entry with `dist/index.mjs` and `dist/index.
 External dependencies are added by the issue that validates their contract. In particular, the
 React/Jotai, dnd-kit, interval-tree, virtualization, and browser-test dependencies remain owned by
 their architecture spikes and harness issues rather than this topology change.
+
+`calendar-temporal` carries the exact `temporal-spec` declaration package so its public types compile
+before TypeScript ships native Temporal declarations. That package has empty JavaScript entry points:
+it is not a runtime implementation or bundled polyfill. ADR 0004 owns its removal trigger.
 
 ## Consumption flow
 
