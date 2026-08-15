@@ -1,0 +1,104 @@
+import { pathToFileURL } from "node:url";
+
+import { generateBenchmarkFixtures } from "fixtures";
+
+import type { BenchmarkMode, BenchmarkReport, BenchmarkStage } from "./contracts.ts";
+import { benchmarkExitCode, runBenchmark } from "./protocol.ts";
+import { referenceEngine } from "./reference.ts";
+
+export interface BenchmarkLogger {
+  error(message: string): void;
+  log(message: string): void;
+}
+
+interface BenchmarkCliOptions {
+  readonly gated: boolean;
+  readonly json: boolean;
+  readonly mode: BenchmarkMode;
+  readonly thresholdScale: number;
+}
+
+function parseOptions(arguments_: readonly string[]): BenchmarkCliOptions {
+  let gated = false;
+  let json = false;
+  let mode: BenchmarkMode = "full";
+  let thresholdScale = 1;
+
+  for (const argument of arguments_) {
+    if (argument === "--gated") {
+      gated = true;
+    } else if (argument === "--json") {
+      json = true;
+    } else if (argument.startsWith("--mode=")) {
+      const value = argument.slice("--mode=".length);
+      if (value !== "full" && value !== "smoke") {
+        throw new RangeError("mode-must-be-smoke-or-full");
+      }
+      mode = value;
+    } else if (argument.startsWith("--threshold-scale=")) {
+      thresholdScale = Number(argument.slice("--threshold-scale=".length));
+      if (!Number.isFinite(thresholdScale)) {
+        throw new RangeError("threshold-scale-must-be-finite");
+      }
+    } else {
+      throw new RangeError(`unknown-benchmark-argument:${argument}`);
+    }
+  }
+
+  return { gated, json, mode, thresholdScale };
+}
+
+function megabytes(bytes: number): string {
+  return `${(bytes / 1_048_576).toFixed(1)} MiB`;
+}
+
+export function formatBenchmarkReport(report: BenchmarkReport): string {
+  const lines = [
+    `Moltenship benchmark protocol v${report.protocolVersion}`,
+    `suite=${report.suite} engine=${report.engine} mode=${report.mode}`,
+    `fixture seed=${report.fixture.seed} events=${report.fixture.events} fragments=${report.fixture.visibleFragments} resources=${report.fixture.resources} dst=${report.fixture.dstCases}`,
+    `environment node=${report.environment.node} platform=${report.environment.platform}/${report.environment.processArchitecture} release=${report.environment.platformRelease}`,
+    `cpu=${report.environment.cpuModel} logical=${report.environment.logicalCpuCount} memory=${megabytes(report.environment.totalMemoryBytes)}`,
+    "stage               warmup samples    p50 ms    p95 ms   threshold      status",
+  ];
+
+  for (const result of report.stages) {
+    lines.push(
+      `${result.stage.padEnd(19)}${String(result.warmupIterations).padStart(6)}${String(result.iterations).padStart(8)}${result.p50Ms.toFixed(3).padStart(10)}${result.p95Ms.toFixed(3).padStart(10)}${(result.thresholdP95Ms === undefined ? "report" : result.thresholdP95Ms.toFixed(3)).padStart(12)} ${result.status.padStart(11)}`,
+    );
+  }
+
+  lines.push(
+    `memory heap=${megabytes(report.memory.heapUsedDeltaBytes)} rss=${megabytes(report.memory.rssDeltaBytes)}`,
+    `gate=${report.passed ? "pass" : "fail"}`,
+    ...report.notes.map((note) => `note=${note}`),
+  );
+  return lines.join("\n");
+}
+
+export function runBenchmarkCli(
+  arguments_: readonly string[],
+  stages: readonly BenchmarkStage[],
+  suite: string,
+  logger: BenchmarkLogger = console,
+): number {
+  try {
+    const options = parseOptions(arguments_);
+    const report = runBenchmark(referenceEngine, generateBenchmarkFixtures(), {
+      mode: options.mode,
+      stages,
+      suite,
+      thresholdScale: options.thresholdScale,
+    });
+    logger.log(options.json ? JSON.stringify(report, null, 2) : formatBenchmarkReport(report));
+    return benchmarkExitCode(report, options.gated);
+  } catch (error) {
+    logger.error(error instanceof Error ? error.message : String(error));
+    return 2;
+  }
+}
+
+export function isDirectExecution(moduleUrl: string): boolean {
+  const entry = process.argv[1];
+  return entry !== undefined && pathToFileURL(entry).href === moduleUrl;
+}

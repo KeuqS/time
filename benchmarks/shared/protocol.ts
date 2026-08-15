@@ -1,0 +1,265 @@
+import { availableParallelism, cpus, release, totalmem } from "node:os";
+import { performance } from "node:perf_hooks";
+import { memoryUsage } from "node:process";
+
+import type { BenchmarkFixtureSet } from "fixtures";
+
+import type {
+  BenchmarkComparison,
+  BenchmarkEngine,
+  BenchmarkEnvironment,
+  BenchmarkMode,
+  BenchmarkReport,
+  BenchmarkRunOptions,
+  BenchmarkStage,
+  BenchmarkStageResult,
+  BenchmarkStatistics,
+} from "./contracts.ts";
+import { referenceEngine } from "./reference.ts";
+
+export const ALL_BENCHMARK_STAGES: readonly BenchmarkStage[] = Object.freeze([
+  "build",
+  "query",
+  "projection",
+  "layout",
+  "render",
+  "pointer-frame",
+]);
+
+export const CORE_BENCHMARK_STAGES: readonly BenchmarkStage[] = Object.freeze([
+  "build",
+  "query",
+  "projection",
+  "layout",
+]);
+
+export const REACT_BENCHMARK_STAGES: readonly BenchmarkStage[] = Object.freeze([
+  "render",
+  "pointer-frame",
+]);
+
+const initialP95ThresholdsMs: Readonly<Partial<Record<BenchmarkStage, number>>> = Object.freeze({
+  build: 25,
+  layout: 8,
+  "pointer-frame": 4,
+  query: 1,
+});
+
+const query = Object.freeze({ startUnit: 8 * 60, endUnit: 2 * 1_440 });
+let benchmarkSink = 0;
+
+function iterationCounts(mode: BenchmarkMode): {
+  readonly iterations: number;
+  readonly warmupIterations: number;
+} {
+  return mode === "smoke"
+    ? { iterations: 8, warmupIterations: 2 }
+    : { iterations: 50, warmupIterations: 10 };
+}
+
+function percentile(sortedSamples: readonly number[], proportion: number): number {
+  const index = Math.max(0, Math.ceil(sortedSamples.length * proportion) - 1);
+  return sortedSamples[index] ?? 0;
+}
+
+export function summarizeSamples(
+  samples: readonly number[],
+  warmupIterations: number,
+): BenchmarkStatistics {
+  if (samples.length === 0) {
+    throw new RangeError("benchmark-samples-must-not-be-empty");
+  }
+
+  const sorted = [...samples].sort((left, right) => left - right);
+  return {
+    iterations: sorted.length,
+    maximumMs: sorted.at(-1) ?? 0,
+    minimumMs: sorted[0] ?? 0,
+    p50Ms: percentile(sorted, 0.5),
+    p95Ms: percentile(sorted, 0.95),
+    warmupIterations,
+  };
+}
+
+function hashString(value: string | null): number {
+  if (value === null) {
+    return 0;
+  }
+
+  let hash = 0;
+  for (const character of value) {
+    hash = (Math.imul(hash, 31) + character.charCodeAt(0)) | 0;
+  }
+  return hash;
+}
+
+function hashCollection(values: readonly { readonly key?: string }[]): number {
+  const first = values[0]?.key ?? "";
+  const last = values.at(-1)?.key ?? "";
+  return values.length ^ hashString(first) ^ hashString(last);
+}
+
+function measure(
+  operation: (iteration: number) => number,
+  mode: BenchmarkMode,
+): BenchmarkStatistics {
+  const { iterations, warmupIterations } = iterationCounts(mode);
+  for (let iteration = 0; iteration < warmupIterations; iteration += 1) {
+    benchmarkSink ^= operation(iteration);
+  }
+
+  const samples: number[] = [];
+  for (let iteration = 0; iteration < iterations; iteration += 1) {
+    const startedAt = performance.now();
+    benchmarkSink ^= operation(iteration);
+    samples.push(performance.now() - startedAt);
+  }
+
+  return summarizeSamples(samples, warmupIterations);
+}
+
+function environment(): BenchmarkEnvironment {
+  return {
+    cpuModel: cpus()[0]?.model ?? "unknown",
+    logicalCpuCount: availableParallelism(),
+    node: process.version,
+    platform: process.platform,
+    platformRelease: release(),
+    processArchitecture: process.arch,
+    totalMemoryBytes: totalmem(),
+  };
+}
+
+function stageResult(
+  stage: BenchmarkStage,
+  statistics: BenchmarkStatistics,
+  thresholdScale: number,
+): BenchmarkStageResult {
+  const baseThreshold = initialP95ThresholdsMs[stage];
+  if (baseThreshold === undefined) {
+    return { ...statistics, stage, status: "report-only" };
+  }
+
+  const thresholdP95Ms = baseThreshold * thresholdScale;
+  return {
+    ...statistics,
+    stage,
+    status: statistics.p95Ms <= thresholdP95Ms ? "pass" : "fail",
+    thresholdP95Ms,
+  };
+}
+
+function equivalent(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function compareCandidateToReference<TSnapshot>(
+  candidate: BenchmarkEngine<TSnapshot>,
+  fixtures: BenchmarkFixtureSet,
+): BenchmarkComparison {
+  const referenceSnapshot = referenceEngine.build(fixtures);
+  const candidateSnapshot = candidate.build(fixtures);
+  const referenceQuery = referenceEngine.query(referenceSnapshot, query);
+  const candidateQuery = candidate.query(candidateSnapshot, query);
+  const referenceProjection = referenceEngine.project(referenceSnapshot, fixtures.visibleFragments);
+  const candidateProjection = candidate.project(candidateSnapshot, fixtures.visibleFragments);
+  const referenceLayout = referenceEngine.layout(referenceProjection);
+  const candidateLayout = candidate.layout(candidateProjection);
+  const differences: BenchmarkStage[] = [];
+
+  if (!equivalent(referenceQuery, candidateQuery)) differences.push("query");
+  if (!equivalent(referenceProjection, candidateProjection)) differences.push("projection");
+  if (!equivalent(referenceLayout, candidateLayout)) differences.push("layout");
+  if (!equivalent(referenceEngine.render(referenceLayout), candidate.render(candidateLayout))) {
+    differences.push("render");
+  }
+  if (
+    referenceEngine.pointerFrame(referenceLayout, 17) !==
+    candidate.pointerFrame(candidateLayout, 17)
+  ) {
+    differences.push("pointer-frame");
+  }
+
+  return {
+    candidate: candidate.name,
+    differences,
+    matchesReference: differences.length === 0,
+    reference: referenceEngine.name,
+  };
+}
+
+export function runBenchmark<TSnapshot>(
+  engine: BenchmarkEngine<TSnapshot>,
+  fixtures: BenchmarkFixtureSet,
+  options: BenchmarkRunOptions,
+): BenchmarkReport {
+  const thresholdScale = options.thresholdScale ?? 1;
+  if (!Number.isFinite(thresholdScale)) {
+    throw new RangeError("threshold-scale-must-be-finite");
+  }
+
+  const before = memoryUsage();
+  const snapshot = engine.build(fixtures);
+  const queried = engine.query(snapshot, query);
+  const projection = engine.project(snapshot, fixtures.visibleFragments);
+  const layout = engine.layout(projection);
+  const render = engine.render(layout);
+  const results: BenchmarkStageResult[] = [];
+
+  for (const stage of options.stages) {
+    const statistics = measure(
+      stage === "build"
+        ? () => {
+            engine.build(fixtures);
+            return fixtures.events.length;
+          }
+        : stage === "query"
+          ? () => hashString(engine.query(snapshot, query)[0] ?? null) ^ queried.length
+          : stage === "projection"
+            ? () => hashCollection(engine.project(snapshot, fixtures.visibleFragments))
+            : stage === "layout"
+              ? () => hashCollection(engine.layout(projection))
+              : stage === "render"
+                ? () => hashCollection(engine.render(layout))
+                : (iteration) => hashString(engine.pointerFrame(layout, iteration)),
+      options.mode,
+    );
+    results.push(stageResult(stage, statistics, thresholdScale));
+  }
+
+  const after = memoryUsage();
+  return {
+    engine: engine.name,
+    environment: environment(),
+    fixture: {
+      dstCases: fixtures.dstCases.length,
+      events: fixtures.events.length,
+      resources: fixtures.resources.length,
+      seed: fixtures.seed,
+      visibleFragments: fixtures.visibleFragments.length,
+    },
+    memory: {
+      afterHeapUsedBytes: after.heapUsed,
+      afterRssBytes: after.rss,
+      beforeHeapUsedBytes: before.heapUsed,
+      beforeRssBytes: before.rss,
+      heapUsedDeltaBytes: after.heapUsed - before.heapUsed,
+      rssDeltaBytes: after.rss - before.rss,
+    },
+    mode: options.mode,
+    notes: [
+      "Reference algorithms calibrate the harness; they are not production-engine claims.",
+      "Render measures render-model materialization, not browser paint or React commits.",
+      "Pointer-frame measures library hit-test scripting, not end-to-end input latency.",
+      `Observable sink: ${benchmarkSink ^ queried.length ^ render.length}`,
+    ],
+    passed: results.every(({ status }) => status !== "fail"),
+    protocolVersion: 1,
+    stages: results,
+    suite: options.suite,
+  };
+}
+
+export function benchmarkExitCode(report: BenchmarkReport, gated: boolean): number {
+  return gated && !report.passed ? 1 : 0;
+}

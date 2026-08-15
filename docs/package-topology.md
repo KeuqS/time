@@ -5,7 +5,8 @@ ownership. A workspace may import only the public entry points of workspaces lis
 `dependencies`; importing another workspace's `src/` tree is always invalid.
 
 Entry points expose only contracts approved by their owning implementation issues. Calendar core
-and Temporal now expose the canonical foundation contracts; the remaining workspaces stay empty
+and Temporal expose the canonical foundation contracts. The internal fixtures and benchmark
+workspaces own reproducible data and performance protocol code; the remaining workspaces stay empty
 until their implementation and validation issues land.
 
 Publishable workspaces expose `src/index.ts` inside the checkout so declared package imports work
