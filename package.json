@@ -9,7 +9,8 @@
     "dev": "vp run showcase#dev",
     "prepare": "vp config",
     "ready": "vp check && vp test && vp run -r build",
-    "test": "vp test"
+    "test": "vp test",
+    "test:contracts": "vp test packages/calendar-temporal/tests packages/calendar-core/tests"
   },
   "devDependencies": {
     "@types/node": "catalog:",
