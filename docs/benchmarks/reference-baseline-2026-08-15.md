@@ -15,14 +15,14 @@ end-user latency claim.
 | Darwin release | 25.5.0 |
 | Node | v24.19.0 |
 | Runner | Production ESM bundle from `benchmarks/dist/run.mjs` |
-| Measured revision | `41cb9d8b5bcdf2946fff370687b55498a58bd7ca` |
+| Measured revision | `e470476e00d04242bfe5072dc61f3ba468e4e9e1` |
 | Fixture seed | `1414090053` (`0x54494d45`) |
 | Fixture profile | 10,000 events; 1,000 visible fragments; 500 resources; 5 DST cases |
 
 Command:
 
 ```sh
-vp run benchmark#gated
+vp run --no-cache benchmark#gated
 ```
 
 Each stage used 10 warmup iterations followed by 50 measured samples. Values below are monotonic
@@ -32,14 +32,14 @@ wall-clock milliseconds reported with nearest-rank percentiles.
 
 | Stage | p50 | p95 | Initial p95 threshold | Result |
 | --- | ---: | ---: | ---: | --- |
-| Build | 0.653 ms | 1.410 ms | 25 ms | Pass |
-| Query | 0.123 ms | 0.215 ms | 1 ms | Pass |
-| Projection | 0.049 ms | 0.069 ms | Report only | Recorded |
-| Layout | 0.363 ms | 0.502 ms | 8 ms | Pass |
-| Render-model materialization | 0.016 ms | 0.085 ms | Report only | Recorded |
-| Pointer-frame hit test | 0.011 ms | 0.031 ms | 4 ms | Pass |
+| Build | 0.662 ms | 1.517 ms | 25 ms | Pass |
+| Query | 0.129 ms | 0.195 ms | 1 ms | Pass |
+| Projection | 0.052 ms | 0.072 ms | Report only | Recorded |
+| Layout | 0.352 ms | 0.506 ms | 8 ms | Pass |
+| Render-model materialization | 0.017 ms | 0.053 ms | Report only | Recorded |
+| Pointer-frame hit test | 0.012 ms | 0.032 ms | 4 ms | Pass |
 
-The process memory snapshots changed by +9.0 MiB heap used and +31.3 MiB RSS across this run. These
+The process memory snapshots changed by +9.0 MiB heap used and +31.2 MiB RSS across this run. These
 are diagnostic deltas, not allocation budgets: Node documents process memory collection as a
 point-in-time operation, and garbage collection plus allocator behavior can move either value between
 runs.
