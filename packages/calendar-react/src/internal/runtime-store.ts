@@ -18,7 +18,7 @@ import type {
   CalendarStateSource,
   CalendarStore,
   CalendarStoreOptions,
-} from "../types.ts";
+} from "../types";
 
 const stateSlices = Object.freeze([
   "view",
