@@ -17,6 +17,7 @@ export interface BrowserEvidence {
   readonly resourceAxisDeltaCssPx: number | null;
   readonly timeAxisDeltaCssPx: number | null;
   readonly maxDevicePixelError: number;
+  readonly devicePixelPlacementAligned: boolean;
   readonly axesOutsideVirtualCanvas: boolean;
   readonly focusedResourceId: string | null;
   readonly metrics: TimelineMetricsSnapshot;
@@ -24,6 +25,7 @@ export interface BrowserEvidence {
 
 export interface ResourceTimelineBrowserApi {
   readonly readEvidence: () => BrowserEvidence;
+  readonly assertDevicePixelPlacement: () => BrowserEvidence;
   readonly setDirection: (direction: TimelineDirection) => Promise<BrowserEvidence>;
   readonly focusResource: (index: number) => Promise<BrowserEvidence>;
   readonly runScrollProbe: (options?: {
@@ -70,6 +72,24 @@ const nextFrame = () =>
     timeoutId = window.setTimeout(finish, 32);
   });
 
+const DEVICE_PIXEL_ERROR_TOLERANCE = 1e-6;
+
+function renderedBoundaryError(
+  elements: readonly HTMLElement[],
+  axis: "block" | "inline",
+  devicePixelRatio: number,
+) {
+  let maxError = 0;
+  for (const element of elements) {
+    const rect = element.getBoundingClientRect();
+    const boundaries = axis === "block" ? [rect.top, rect.bottom] : [rect.left, rect.right];
+    for (const boundary of boundaries) {
+      maxError = Math.max(maxError, devicePixelError(boundary, devicePixelRatio));
+    }
+  }
+  return maxError;
+}
+
 export function useResourceTimelineBrowserApi({
   direction,
   focusResource,
@@ -101,15 +121,11 @@ export function useResourceTimelineBrowserApi({
       firstHeader === undefined
         ? undefined
         : gridCells.find((cell) => cell.dataset.slotCell === firstHeader.dataset.slotHeader);
-    const positionedElements = [...resourceRows, ...resourceLabels, ...timeHeaders, ...gridCells];
-    let maxPlacementError = 0;
-    for (const element of positionedElements) {
-      const snappedStart = Number(element.dataset.snappedStart ?? "0");
-      maxPlacementError = Math.max(
-        maxPlacementError,
-        devicePixelError(snappedStart, placementScale),
-      );
-    }
+    const browserDevicePixelRatio = window.devicePixelRatio;
+    const maxPlacementError = Math.max(
+      renderedBoundaryError([...resourceRows, ...resourceLabels], "block", browserDevicePixelRatio),
+      renderedBoundaryError([...timeHeaders, ...gridCells], "inline", browserDevicePixelRatio),
+    );
 
     const focusedResourceId =
       document.activeElement instanceof HTMLElement
@@ -118,7 +134,7 @@ export function useResourceTimelineBrowserApi({
     return Object.freeze({
       direction,
       placementScale,
-      browserDevicePixelRatio: window.devicePixelRatio,
+      browserDevicePixelRatio,
       renderedResourceRows: resourceRows.length,
       renderedResourceLabels: resourceLabels.length,
       renderedTimeHeaders: timeHeaders.length,
@@ -137,6 +153,7 @@ export function useResourceTimelineBrowserApi({
               firstHeader.getBoundingClientRect().left - matchingCell.getBoundingClientRect().left,
             ),
       maxDevicePixelError: maxPlacementError,
+      devicePixelPlacementAligned: maxPlacementError <= DEVICE_PIXEL_ERROR_TOLERANCE,
       axesOutsideVirtualCanvas:
         canvas !== null &&
         timeAxisRef.current !== null &&
@@ -159,6 +176,15 @@ export function useResourceTimelineBrowserApi({
   useEffect(() => {
     const api: ResourceTimelineBrowserApi = Object.freeze({
       readEvidence,
+      assertDevicePixelPlacement() {
+        const evidence = window.__resourceTimelineSpike?.readEvidence() ?? readEvidence();
+        if (!evidence.devicePixelPlacementAligned) {
+          throw new Error(
+            `Rendered timeline boundaries miss the ${evidence.browserDevicePixelRatio}x device grid by up to ${evidence.maxDevicePixelError} device pixels (authored at ${evidence.placementScale}x).`,
+          );
+        }
+        return evidence;
+      },
       async setDirection(nextDirection: TimelineDirection) {
         setDirection(nextDirection);
         await nextFrame();

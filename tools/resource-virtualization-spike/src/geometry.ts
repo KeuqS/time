@@ -26,6 +26,18 @@ export interface ScrollOffsets {
   readonly block: number;
 }
 
+export type InlineDirection = "ltr" | "rtl";
+
+export function logicalInlineOffset(nativeScrollLeft: number, direction: InlineDirection): number {
+  const logicalOffset = direction === "rtl" ? -nativeScrollLeft : nativeScrollLeft;
+  return Math.max(0, logicalOffset);
+}
+
+export function nativeInlineOffset(logicalOffset: number, direction: InlineDirection): number {
+  const clampedOffset = Math.max(0, logicalOffset);
+  return direction === "rtl" ? -clampedOffset : clampedOffset;
+}
+
 export interface AxisScrollTargets {
   readonly timeAxis: Pick<HTMLElement, "scrollLeft">;
   readonly resourceAxis: Pick<HTMLElement, "scrollTop">;

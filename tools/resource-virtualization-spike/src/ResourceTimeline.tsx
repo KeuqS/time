@@ -17,6 +17,7 @@ import {
 } from "./model.ts";
 import { useResourceFocus } from "./useResourceFocus.ts";
 import { useScrollSynchronization } from "./useScrollSynchronization.ts";
+import { useTimelineDirection } from "./useTimelineDirection.ts";
 
 export type {
   BrowserEvidence,
@@ -176,13 +177,20 @@ export function ResourceTimeline({
     timeVirtualizer,
     viewportRef,
   });
+  const changeDirection = useTimelineDirection({
+    direction,
+    resourceAxisRef,
+    setDirection: setDirectionState,
+    timeAxisRef,
+    viewportRef,
+  });
   useResourceTimelineBrowserApi({
     direction,
     focusResource,
     metrics,
     placementScale,
     resourceAxisRef,
-    setDirection: setDirectionState,
+    setDirection: changeDirection,
     shellRef,
     timeAxisRef,
     viewportRef,
@@ -206,14 +214,14 @@ export function ResourceTimeline({
         <div className="lab-controls" aria-label="Timeline controls">
           <button
             className={direction === "ltr" ? "is-active" : undefined}
-            onClick={() => setDirectionState("ltr")}
+            onClick={() => changeDirection("ltr")}
             type="button"
           >
             LTR
           </button>
           <button
             className={direction === "rtl" ? "is-active" : undefined}
-            onClick={() => setDirectionState("rtl")}
+            onClick={() => changeDirection("rtl")}
             type="button"
           >
             RTL

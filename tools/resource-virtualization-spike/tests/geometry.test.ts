@@ -2,6 +2,8 @@ import { expect, test } from "vite-plus/test";
 
 import {
   devicePixelError,
+  logicalInlineOffset,
+  nativeInlineOffset,
   snapPlacement,
   snapToDevicePixel,
   synchronizeAxes,
@@ -44,6 +46,15 @@ test("axis synchronization performs exactly two constant-time writes", () => {
   expect(writes).toBe(2);
   expect(timeAxis.scrollLeft).toBe(-9_600);
   expect(resourceAxis.scrollTop).toBe(14_000);
+});
+
+test("logical inline offsets map symmetrically across LTR and negative-scroll RTL", () => {
+  expect(logicalInlineOffset(12_000, "ltr")).toBe(12_000);
+  expect(logicalInlineOffset(-12_000, "rtl")).toBe(12_000);
+  expect(nativeInlineOffset(12_000, "ltr")).toBe(12_000);
+  expect(nativeInlineOffset(12_000, "rtl")).toBe(-12_000);
+  expect(logicalInlineOffset(50, "rtl")).toBe(0);
+  expect(nativeInlineOffset(-50, "ltr")).toBe(0);
 });
 
 test("instrumented frames stay bounded below the 500-resource population", () => {

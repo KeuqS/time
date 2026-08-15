@@ -82,3 +82,18 @@ browser state, SSR/hydration tests, and production-build outputs are the durable
 - two constant-time sticky-axis writes;
 - device-pixel snapping at scale 1, 1.25, 1.5, 2, and 3;
 - positive controls proving the instrumentation flags both a 500-key scan and a 500-record scan.
+
+## Review follow-up: rendered pixels and direction transitions
+
+After review feedback, the production build was rechecked in the same Chromium environment at DPR
+2 from a nonzero logical inline offset of 12,000px:
+
+- LTR rendered visible headers `slot-124` through `slot-134` with viewport and time-axis
+  `scrollLeft = 12000`.
+- Switching to RTL preserved the same visible headers and produced synchronized native offsets of
+  `-12000`; switching back to LTR restored synchronized offsets of `12000` and the same headers.
+- All three settled states reported zero axis drift and zero rendered device-pixel error.
+- The browser probe now reads actual `getBoundingClientRect()` start and end boundaries against
+  `window.devicePixelRatio`. As a positive control, translating one rendered header by 0.25 CSS px
+  at DPR 2 produced a 0.5-device-pixel error, set `devicePixelPlacementAligned` to false, and caused
+  `assertDevicePixelPlacement()` to throw. The temporary translation was removed after the probe.

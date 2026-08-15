@@ -15,8 +15,11 @@ viewport.
   key/resource reads per scheduled frame, axis writes, placement error, and full-resource scans.
 - Roving focus is stored by resource ID, restored when a row returns to the virtual window, and
   supports Arrow Up/Down, Home, and End.
-- RTL uses logical placement plus TanStack Virtual's `isRtl` offset normalization. Geometry is
-  snapped to a configurable device-pixel scale.
+- RTL uses logical placement plus TanStack Virtual's `isRtl` offset normalization. A direction
+  change preserves the logical time range while reconciling the viewport, time axis, and
+  virtualizer to the new native `scrollLeft` convention.
+- Geometry is authored against a configurable placement scale, while browser evidence measures
+  the rendered start and end boundaries against the actual `window.devicePixelRatio`.
 
 ## Run it
 
@@ -33,6 +36,7 @@ In a browser console, inspect or drive the probe through:
 
 ```js
 window.__resourceTimelineSpike.readEvidence();
+window.__resourceTimelineSpike.assertDevicePixelPlacement();
 await window.__resourceTimelineSpike.runScrollProbe();
 await window.__resourceTimelineSpike.setDirection("rtl");
 await window.__resourceTimelineSpike.focusResource(239);

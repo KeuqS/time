@@ -31,11 +31,14 @@ over the same native scroll viewport.
   that deterministic rectangle when an environment reports `0 × 0`, then uses non-zero browser
   measurements. Disable adapter `flushSync` so React 19 hydration and StrictMode do not force sync
   updates from lifecycle work.
-- Set horizontal `isRtl` from the calendar direction, synchronize the raw native `scrollLeft`, use
-  logical CSS placement, and snap item boundaries to the configured device-pixel scale.
+- Set horizontal `isRtl` from the calendar direction, preserve the current logical time offset when
+  direction changes, then reconcile the viewport, time axis, and virtualizer to the new raw native
+  `scrollLeft` before exposing settled browser state. Use logical CSS placement and snap authored
+  item boundaries to the configured placement scale.
 - Keep instrumentation in the spike: DOM counts, visible ranges, projected cells, React commits,
-  axis writes, key/resource reads per scheduled frame, placement error, and an explicit
-  full-resource-frame-scan counter.
+  axis writes, key/resource reads per scheduled frame, actual rendered-boundary error against
+  `window.devicePixelRatio`, and an explicit full-resource-frame-scan counter. A configured
+  placement scale that differs from the physical grid must be reported as misaligned.
 
 ## Evidence
 
@@ -47,8 +50,9 @@ after its DOM node was virtualized away. Full results and reproduction steps are
 [`docs/evidence/issue-20-browser.md`](../evidence/issue-20-browser.md).
 
 Automated tests also cover deterministic repeated SSR output, exact StrictMode hydration without a
-recovery, RTL initial markup, focus restoration, stable IDs, two-write synchronization, and pixel
-snapping at DPR 1, 1.25, 1.5, 2, and 3.
+recovery, RTL initial markup, focus restoration, stable IDs, two-write synchronization, pixel
+snapping at DPR 1, 1.25, 1.5, 2, and 3, nonzero LTR↔RTL transitions, and a rendered fractional-pixel
+positive control that the browser-facing assertion rejects.
 
 ## Consequences
 
@@ -59,7 +63,8 @@ snapping at DPR 1, 1.25, 1.5, 2, and 3.
 - Focus can temporarily fall back to the document body while its row is absent. The stable ID lets
   the row reclaim focus when it returns, but screen-reader/browser combinations still require a
   dedicated accessibility matrix before production rollout.
-- Raw RTL `scrollLeft` conventions stay encapsulated in the virtualizer and axis synchronizer.
+- Raw RTL `scrollLeft` conventions stay encapsulated in the direction reconciler, virtualizer, and
+  axis synchronizer. Direction changes preserve the logical time range rather than resetting it.
 - Fixed estimates make placement deterministic. Variable-height resources would require anchored
   measurement and a renewed scroll-stability proof.
 
