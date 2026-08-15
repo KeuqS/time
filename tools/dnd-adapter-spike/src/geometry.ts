@@ -40,15 +40,19 @@ function assertDefinition<TResourceId extends CalendarEntityId>(
 
 export class CalendarViewRegionGeometry<TResourceId extends CalendarEntityId = string> {
   readonly #resourceIndexes: ReadonlyMap<TResourceId, number>;
+  readonly definition: CalendarViewRegionDefinition<TResourceId>;
+  readonly rectangle: CalendarRegionRectangle;
 
   constructor(
-    readonly definition: CalendarViewRegionDefinition<TResourceId>,
-    readonly rectangle: CalendarRegionRectangle,
+    definition: CalendarViewRegionDefinition<TResourceId>,
+    rectangle: CalendarRegionRectangle,
   ) {
     assertDefinition(definition);
     if (rectangle.width <= 0 || rectangle.height <= 0) {
       throw new RangeError("Calendar view-region rectangle must have positive dimensions");
     }
+    this.definition = definition;
+    this.rectangle = rectangle;
     this.#resourceIndexes = new Map(
       definition.resources.map((resourceId, index) => [resourceId, index]),
     );
