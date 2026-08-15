@@ -37,6 +37,13 @@ describe("half-open interval contracts", () => {
     });
   });
 
+  test("rejects an unordered comparator result", () => {
+    expect(validateHalfOpenInterval("number", Number.NaN, 1, compareNumbers)).toEqual({
+      issue: { code: "start-not-before-end", end: 1, start: Number.NaN },
+      valid: false,
+    });
+  });
+
   test("offers an explicit throwing constructor", () => {
     expect(() => halfOpenInterval("test", 4, 4, compareNumbers)).toThrowError(
       InvalidHalfOpenIntervalError,

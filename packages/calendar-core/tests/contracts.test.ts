@@ -193,6 +193,21 @@ describe("canonical contracts", () => {
     });
   });
 
+  test("rejects event intervals when their comparator result is unordered", () => {
+    const unorderedComparators: CalendarEventIntervalComparators<number, number, number> = {
+      instant: () => Number.NaN,
+      plainDate: () => Number.NaN,
+      plainDateTime: () => Number.NaN,
+    };
+
+    expect(
+      validateCalendarEventInterval({ end: 2, kind: "timed", start: 1 }, unorderedComparators),
+    ).toEqual({
+      issues: [{ code: "start-not-before-end", kind: "timed" }],
+      valid: false,
+    });
+  });
+
   test("keeps environment now sources mutually exclusive", () => {
     type InvalidNowSources = CalendarEnvironmentBase & {
       readonly clock: CalendarClock;
