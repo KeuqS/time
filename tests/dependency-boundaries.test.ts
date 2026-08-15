@@ -132,8 +132,8 @@ describe.sequential("workspace boundaries", () => {
     });
 
     await Promise.all(
-      ["calendar-core#check", "benchmark#check"].map((task) =>
-        execFileAsync("vp", ["run", task], { cwd: process.cwd() }),
+      ["packages/calendar-core", "benchmarks"].map((workspacePath) =>
+        execFileAsync("vp", ["check"], { cwd: join(process.cwd(), workspacePath) }),
       ),
     );
   }, 30_000);
@@ -177,7 +177,9 @@ describe.sequential("workspace boundaries", () => {
   }, 30_000);
 
   test("benchmark resolves the built fixtures package through its public entry point", async () => {
-    await execFileAsync("vp", ["run", "fixtures#build"], { cwd: process.cwd() });
+    await execFileAsync("vp", ["pack"], {
+      cwd: join(process.cwd(), "tools/fixtures"),
+    });
 
     const { stdout } = await execFileAsync(
       process.execPath,
