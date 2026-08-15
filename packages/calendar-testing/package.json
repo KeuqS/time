@@ -1,0 +1,35 @@
+{
+  "name": "@moltenship/calendar-testing",
+  "version": "0.0.0",
+  "description": "Consumer-facing fixtures, harnesses, and semantic assertions for Moltenship Time.",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "dev": "vp pack --watch",
+    "prepublishOnly": "vp run build",
+    "test": "vp test --passWithNoTests"
+  },
+  "dependencies": {
+    "@moltenship/calendar": "workspace:*",
+    "@moltenship/calendar-dnd": "workspace:*",
+    "@moltenship/calendar-temporal": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

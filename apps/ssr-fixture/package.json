@@ -1,0 +1,21 @@
+{
+  "name": "ssr-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Consumer-equivalent SSR render and hydration verification boundary.",
+  "type": "module",
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "test": "vp test --passWithNoTests"
+  },
+  "dependencies": {
+    "@moltenship/calendar": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

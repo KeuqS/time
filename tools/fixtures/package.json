@@ -1,0 +1,21 @@
+{
+  "name": "fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal deterministic fixture generation for calendar tests and benchmarks.",
+  "type": "module",
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "test": "vp test --passWithNoTests"
+  },
+  "dependencies": {
+    "@moltenship/calendar-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

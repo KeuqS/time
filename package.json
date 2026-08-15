@@ -1,14 +1,20 @@
 {
-  "name": "time",
+  "name": "@moltenship/time-workspace",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "ready": "vp check && vp run -r test && vp run -r build",
-    "dev": "vp run website#dev",
-    "prepare": "vp config"
+    "build": "vp run -r build",
+    "check:boundaries": "vp test tests/dependency-boundaries.test.ts",
+    "dev": "vp run showcase#dev",
+    "prepare": "vp config",
+    "ready": "vp check && vp test && vp run -r build",
+    "test": "vp test"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
+    "dependency-cruiser": "18.2.0",
+    "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   },

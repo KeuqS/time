@@ -1,0 +1,62 @@
+# Package topology and ownership
+
+This document turns the dependency law in [architecture.md](../architecture.md) into repository
+ownership. A workspace may import only the public entry points of workspaces listed in its
+`dependencies`; importing another workspace's `src/` tree is always invalid.
+
+The skeleton entry points are intentionally empty until their owning implementation issues land.
+They establish build, publication, and dependency boundaries without freezing speculative calendar
+APIs.
+
+## Workspace ownership
+
+| Workspace | Plane and ownership | Allowed workspace imports |
+| --- | --- | --- |
+| `@moltenship/calendar-temporal` | Engine: type-specific Temporal utilities | None |
+| `@moltenship/calendar-core` | Engine: snapshots, indexes, projections, layouts, and transactions | `calendar-temporal` |
+| `@moltenship/calendar-react` | React integration: provider, selectors, actions, and headless primitives | `calendar-core` |
+| `@moltenship/calendar-dnd` | Optional interaction adapter | `calendar-core`, `calendar-react` |
+| `@moltenship/calendar` | Supported public facade | `calendar-core`, `calendar-react` |
+| `@moltenship/calendar-testing` | Published consumer test helpers | Public facade, dnd adapter, and Temporal utilities |
+| `@moltenship/calendar-recurrence` | Reserved post-1.0 engine | `calendar-core`, `calendar-temporal` |
+| `showcase` | Consumer-equivalent documentation and labs | Public facade only |
+| `ssr-fixture` | Consumer-equivalent SSR/hydration verification | Public facade only |
+| `fixtures` | Internal deterministic fixture generation | `calendar-core` |
+| `benchmark` | Internal core and React performance runners | Core, React bindings, and fixture tooling |
+| `registry` | Internal shadcn schema/build verification | None until the registry harness lands |
+
+External dependencies are added by the issue that validates their contract. In particular, the
+React/Jotai, dnd-kit, interval-tree, virtualization, and browser-test dependencies remain owned by
+their architecture spikes and harness issues rather than this topology change.
+
+## Import direction
+
+```text
+calendar-temporal
+       ↓
+calendar-core ───────→ fixtures ───────→ benchmark
+       ↓                                ↑
+calendar-react ─────────────────────────┘
+       ├────────────→ calendar-dnd
+       └────────────→ calendar (facade) ─────→ showcase / ssr-fixture
+                              ↓
+                      calendar-testing ← calendar-dnd / calendar-temporal
+
+calendar-core + calendar-temporal ─────→ calendar-recurrence (reserved)
+```
+
+Registry item directories are consumer-owned source boundaries, not npm packages. They may consume
+supported public packages once implemented, but published packages must never import registry,
+application, benchmark, or tool source.
+
+## Enforcement
+
+`vp run check:boundaries` uses dependency-cruiser to validate source edges and Vitest to validate
+the workspace manifest graph. The same test runs dependency-cruiser against a deliberately invalid
+fixture and passes only when the expected deep-import violation is reported. Core and Temporal
+configuration is also asserted to omit DOM libraries and ambient package types.
+
+Dependency-cruiser 18 does not yet parse TypeScript 7, so pnpm supplies it with an isolated
+TypeScript 6 parser through `packageExtensions`. Vite+ and every workspace continue to compile with
+the cataloged TypeScript 7 toolchain; remove the isolated parser once dependency-cruiser supports
+that compiler line.
