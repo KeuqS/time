@@ -174,7 +174,7 @@ function validateCssVariables(cssVars: unknown, manifestPath: string): RegistryV
 function validateCompatibility(
   meta: unknown,
   manifestPath: string,
-  dependencyNames: ReadonlySet<string>,
+  runtimeDependencyNames: ReadonlySet<string>,
 ): RegistryValidationIssue[] {
   const metadata = isRecord(meta) ? meta : null;
   const compatibility =
@@ -201,7 +201,7 @@ function validateCompatibility(
         ),
       );
     }
-    if (!dependencyNames.has(runtimePackage)) {
+    if (!runtimeDependencyNames.has(runtimePackage)) {
       issues.push(
         issue(
           "missing-compatible-dependency",
@@ -282,12 +282,11 @@ async function validateParsedItem(
     }
   }
 
-  const dependencies = [...(item.dependencies ?? []), ...(item.devDependencies ?? [])];
-  const dependencyNames = new Set<string>();
-  for (const dependency of dependencies) {
+  const runtimeDependencyNames = new Set<string>();
+  for (const dependency of item.dependencies ?? []) {
     try {
       const name = parsePackageArgument(dependency).name;
-      if (name) dependencyNames.add(name);
+      if (name) runtimeDependencyNames.add(name);
     } catch {
       // The dependency validator reports the actionable error.
     }
@@ -298,7 +297,7 @@ async function validateParsedItem(
     ...validateDependencies(item.devDependencies, manifestPath, "devDependencies"),
     ...validateRegistryDependencies(item.registryDependencies, manifestPath),
     ...validateCssVariables(item.cssVars, manifestPath),
-    ...validateCompatibility(item.meta, manifestPath, dependencyNames),
+    ...validateCompatibility(item.meta, manifestPath, runtimeDependencyNames),
   );
 
   return { issues, name: item.name, targets };

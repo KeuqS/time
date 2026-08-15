@@ -41,6 +41,25 @@ describe("shadcn registry validation", () => {
     );
   });
 
+  test("rejects compatibility packages declared only as dev dependencies", async () => {
+    const manifestPath =
+      "tools/registry/fixtures/known-bad-dev-only-compatibility/registry-item.json";
+    const report = await validateRegistryWorkspace(workspaceRoot, [manifestPath]);
+
+    expect(report).toEqual({
+      valid: false,
+      manifests: 1,
+      targets: 1,
+      issues: [
+        {
+          code: "missing-compatible-dependency",
+          path: `${manifestPath}.meta.compatibility.@moltenship/calendar`,
+          message: "Compatibility package must also appear in dependencies: @moltenship/calendar",
+        },
+      ],
+    });
+  });
+
   test("the named known-bad task exits non-zero with the registry reason", async () => {
     try {
       await execFileAsync(process.execPath, ["src/known-bad.ts"], {
