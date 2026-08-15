@@ -4,5 +4,5 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["core", "react", "vite.config.ts"]
+  "include": ["core", "react", "tests", "vite.config.ts"]
 }

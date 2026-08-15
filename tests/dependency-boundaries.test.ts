@@ -1,5 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { cruise, type IConfiguration, type ICruiseResult } from "dependency-cruiser";
 import { describe, expect, test } from "vite-plus/test";
@@ -8,6 +12,7 @@ import dependencyCruiserConfig from "../dependency-cruiser.config.ts";
 
 const productionRoots = ["apps", "benchmarks", "packages", "registry", "tools"];
 const invalidFixtureRoot = "tests/fixtures/dependency-boundaries";
+const execFileAsync = promisify(execFile);
 
 const expectedWorkspaceDependencies = {
   "@moltenship/calendar": ["@moltenship/calendar-core", "@moltenship/calendar-react"],
@@ -41,6 +46,16 @@ const workspaceManifestPaths = [
   "packages/calendar-testing/package.json",
   "tools/fixtures/package.json",
   "tools/registry/package.json",
+] as const;
+
+const publishableManifestPaths = [
+  "packages/calendar/package.json",
+  "packages/calendar-core/package.json",
+  "packages/calendar-dnd/package.json",
+  "packages/calendar-react/package.json",
+  "packages/calendar-recurrence/package.json",
+  "packages/calendar-temporal/package.json",
+  "packages/calendar-testing/package.json",
 ] as const;
 
 async function cruiseWithArchitectureRules(roots: string[]) {
@@ -92,6 +107,92 @@ describe("workspace boundaries", () => {
 
     expect(actualDependencies).toEqual(expectedWorkspaceDependencies);
   });
+
+  test("declared workspace imports compile against source before packages are built", async () => {
+    const manifests = await Promise.all(
+      publishableManifestPaths.map(async (manifestPath) =>
+        JSON.parse(await readFile(join(process.cwd(), manifestPath), "utf8")),
+      ),
+    );
+    const fixturesManifest = JSON.parse(
+      await readFile(join(process.cwd(), "tools/fixtures/package.json"), "utf8"),
+    );
+
+    for (const manifest of manifests) {
+      expect(manifest.exports["."]).toBe("./src/index.ts");
+      expect(manifest.publishConfig.exports["."]).toEqual({
+        types: "./dist/index.d.mts",
+        import: "./dist/index.mjs",
+      });
+    }
+
+    expect(fixturesManifest.exports["."]).toEqual({
+      types: "./src/index.ts",
+      import: "./dist/index.mjs",
+    });
+
+    await Promise.all(
+      ["calendar-core#check", "benchmark#check"].map((task) =>
+        execFileAsync("vp", ["run", task], { cwd: process.cwd() }),
+      ),
+    );
+  }, 30_000);
+
+  test("packed publishable package exposes built runtime and declarations", async () => {
+    const packageRoot = join(process.cwd(), "packages/calendar-temporal");
+    const manifestPath = join(packageRoot, "package.json");
+    const packDestination = await mkdtemp(join(tmpdir(), "time-package-"));
+    const localManifestBeforePack = await readFile(manifestPath, "utf8");
+
+    try {
+      await execFileAsync("vp", ["pack"], { cwd: packageRoot });
+      expect(await readFile(manifestPath, "utf8")).toBe(localManifestBeforePack);
+      await execFileAsync("vp", ["pm", "pack", "--pack-destination", packDestination], {
+        cwd: packageRoot,
+      });
+
+      const [archiveName] = (await readdir(packDestination)).filter((fileName) =>
+        fileName.endsWith(".tgz"),
+      );
+      expect(archiveName).toBeDefined();
+
+      const archivePath = join(packDestination, archiveName!);
+      const { stdout: packedManifestText } = await execFileAsync("tar", [
+        "-xOf",
+        archivePath,
+        "package/package.json",
+      ]);
+      const { stdout: archiveContents } = await execFileAsync("tar", ["-tf", archivePath]);
+      const packedManifest = JSON.parse(packedManifestText);
+
+      expect(packedManifest.exports["."]).toEqual({
+        types: "./dist/index.d.mts",
+        import: "./dist/index.mjs",
+      });
+      expect(archiveContents).toContain("package/dist/index.d.mts");
+      expect(archiveContents).toContain("package/dist/index.mjs");
+    } finally {
+      await rm(packDestination, { force: true, recursive: true });
+    }
+  }, 30_000);
+
+  test("benchmark resolves the built fixtures package through its public entry point", async () => {
+    await execFileAsync("vp", ["run", "fixtures#build"], { cwd: process.cwd() });
+
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        'const target = import.meta.resolve("fixtures"); await import(target); console.log(target);',
+      ],
+      { cwd: join(process.cwd(), "benchmarks") },
+    );
+
+    expect(stdout.trim()).toBe(
+      pathToFileURL(join(process.cwd(), "tools/fixtures/dist/index.mjs")).href,
+    );
+  }, 30_000);
 
   test.each(["calendar-core", "calendar-temporal"])(
     "%s compiles without DOM or ambient package types",

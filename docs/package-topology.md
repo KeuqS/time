@@ -8,6 +8,12 @@ The skeleton entry points are intentionally empty until their owning implementat
 They establish build, publication, and dependency boundaries without freezing speculative calendar
 APIs.
 
+Publishable workspaces expose `src/index.ts` inside the checkout so declared package imports work
+before any ignored build output exists. pnpm applies each package's `publishConfig.exports` while
+packing, replacing that development entry with `dist/index.mjs` and `dist/index.d.mts`. The private
+`fixtures` workspace follows the same type-checking rule but keeps its runtime import on built
+`dist/`, which is the artifact consumed by `benchmark`.
+
 ## Workspace ownership
 
 | Workspace | Plane and ownership | Allowed workspace imports |
@@ -29,7 +35,7 @@ External dependencies are added by the issue that validates their contract. In p
 React/Jotai, dnd-kit, interval-tree, virtualization, and browser-test dependencies remain owned by
 their architecture spikes and harness issues rather than this topology change.
 
-## Import direction
+## Consumption flow
 
 ```text
 calendar-temporal
