@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
-  "recordedAt": "2026-08-15T04:32:20+04:00",
-  "baselineCommit": "82bfc25",
+  "recordedAt": "2026-08-15T11:52:52+04:00",
+  "baselineCommit": "046c734",
+  "measuredCommit": "794480c497b1",
   "command": "vp run @moltenship/dnd-adapter-spike#trace",
   "environment": {
     "os": "macOS 26.5.1 (25F80)",
@@ -18,7 +19,7 @@
   "interaction": {
     "pointerMoves": 240,
     "calendarReactCommits": 0,
-    "pointerScriptingP95Ms": 0.025,
+    "pointerScriptingP95Ms": 0.035,
     "pointerTouchKeyboardProposalsEquivalent": true,
     "droppableSurfaces": 1,
     "configuredSensors": 2,
@@ -40,8 +41,8 @@
   "productionBuild": {
     "entry": "dist/dnd-adapter-spike.js",
     "externalizedPeerDependencies": true,
-    "bytes": 9900,
-    "gzipBytes": 3366
+    "bytes": 10389,
+    "gzipBytes": 3421
   },
   "limitations": [
     "Manager-level scripting measured in happy-dom is not a production browser frame benchmark.",

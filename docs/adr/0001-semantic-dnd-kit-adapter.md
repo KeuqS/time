@@ -31,10 +31,12 @@ The committed [interaction trace](../../tools/dnd-adapter-spike/artifacts/intera
 - 240 manager-level pointer movements and zero React commits in the profiled calendar view;
 - equivalent pointer, touch, and keyboard proposals;
 - one view-region droppable, two configured sensors, an overlay, and a live announcement region;
-- 0.025 ms observed p95 manager-level scripting on the recorded machine;
+- 0.035 ms observed p95 manager-level scripting on the recorded machine;
 - one geometry read for the first frame of a 100-update auto-scroll burst, with continuous follow-up and cancellation;
 - source continuity across unregister/re-register, no proposal on cancel, and canceled/empty registries after unmount;
-- a 9,900-byte ESM production build (3,366 bytes gzip) with React and dnd-kit externalized.
+- a 10,389-byte ESM production build (3,421 bytes gzip) with React and dnd-kit externalized.
+
+The trace was refreshed against production-source commit `794480c497b1` after the pointer-origin and announcement-order fixes. Its `baselineCommit` records the synchronized `main` base, while `measuredCommit` identifies the exact implementation under measurement.
 
 The timing is a deterministic test-harness trace, not a browser frame benchmark. It establishes the update topology and catches regressions cheaply. Issue #37 must repeat the under-4-ms measurement with a production browser build and actual pointer events before issue #38 can close.
 
