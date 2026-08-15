@@ -8,6 +8,12 @@ Entry points expose only contracts approved by their owning implementation issue
 and Temporal now expose the canonical foundation contracts; the remaining workspaces stay empty
 until their implementation and validation issues land.
 
+Publishable workspaces expose `src/index.ts` inside the checkout so declared package imports work
+before any ignored build output exists. pnpm applies each package's `publishConfig.exports` while
+packing, replacing that development entry with `dist/index.mjs` and `dist/index.d.mts`. The private
+`fixtures` workspace follows the same type-checking rule but keeps its runtime import on built
+`dist/`, which is the artifact consumed by `benchmark`.
+
 ## Workspace ownership
 
 | Workspace | Plane and ownership | Allowed workspace imports |
@@ -33,7 +39,7 @@ their architecture spikes and harness issues rather than this topology change.
 before TypeScript ships native Temporal declarations. That package has empty JavaScript entry points:
 it is not a runtime implementation or bundled polyfill. ADR 0004 owns its removal trigger.
 
-## Import direction
+## Consumption flow
 
 ```text
 calendar-temporal

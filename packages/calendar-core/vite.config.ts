@@ -4,7 +4,7 @@ export default defineConfig({
   pack: {
     dts: { oxc: true },
     entry: ["src/index.ts"],
-    exports: true,
+    tsconfig: "tsconfig.build.json",
   },
   lint: { options: { typeAware: true, typeCheck: true } },
   fmt: {},
