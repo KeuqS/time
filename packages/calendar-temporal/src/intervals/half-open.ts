@@ -49,7 +49,7 @@ export function validateHalfOpenInterval<TPoint, const TKind extends string>(
   end: TPoint,
   compare: HalfOpenIntervalComparator<TPoint>,
 ): HalfOpenIntervalValidation<TPoint, TKind> {
-  if (compare(start, end) >= 0) {
+  if (!(compare(start, end) < 0)) {
     return {
       valid: false,
       issue: { code: "start-not-before-end", start, end },
