@@ -15,6 +15,7 @@ end-user latency claim.
 | Darwin release | 25.5.0 |
 | Node | v24.19.0 |
 | Runner | Production ESM bundle from `benchmarks/dist/run.mjs` |
+| Measured revision | `41cb9d8b5bcdf2946fff370687b55498a58bd7ca` |
 | Fixture seed | `1414090053` (`0x54494d45`) |
 | Fixture profile | 10,000 events; 1,000 visible fragments; 500 resources; 5 DST cases |
 
@@ -31,14 +32,14 @@ wall-clock milliseconds reported with nearest-rank percentiles.
 
 | Stage | p50 | p95 | Initial p95 threshold | Result |
 | --- | ---: | ---: | ---: | --- |
-| Build | 0.653 ms | 1.204 ms | 25 ms | Pass |
-| Query | 0.127 ms | 0.151 ms | 1 ms | Pass |
-| Projection | 0.046 ms | 0.061 ms | Report only | Recorded |
-| Layout | 0.379 ms | 0.426 ms | 8 ms | Pass |
-| Render-model materialization | 0.016 ms | 0.026 ms | Report only | Recorded |
-| Pointer-frame hit test | 0.010 ms | 0.030 ms | 4 ms | Pass |
+| Build | 0.653 ms | 1.410 ms | 25 ms | Pass |
+| Query | 0.123 ms | 0.215 ms | 1 ms | Pass |
+| Projection | 0.049 ms | 0.069 ms | Report only | Recorded |
+| Layout | 0.363 ms | 0.502 ms | 8 ms | Pass |
+| Render-model materialization | 0.016 ms | 0.085 ms | Report only | Recorded |
+| Pointer-frame hit test | 0.011 ms | 0.031 ms | 4 ms | Pass |
 
-The process memory snapshots changed by +6.8 MiB heap used and +31.2 MiB RSS across this run. These
+The process memory snapshots changed by +9.0 MiB heap used and +31.3 MiB RSS across this run. These
 are diagnostic deltas, not allocation budgets: Node documents process memory collection as a
 point-in-time operation, and garbage collection plus allocator behavior can move either value between
 runs.
