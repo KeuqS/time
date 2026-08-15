@@ -7,10 +7,22 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@types/jsdom": 21.1.7
   "@types/node": ^24
+  "@types/npm-package-arg": 6.1.4
+  "@types/react": 19.2.14
+  "@types/react-dom": 19.2.3
+  "@types/semver": 7.7.1
+  jsdom: 26.1.0
+  npm-package-arg: 13.0.2
+  react: 19.2.7
+  react-dom: 19.2.7
+  semver: 7.7.2
+  shadcn: 3.5.0
   typescript: ^7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@0.2.6
   vite-plus: 0.2.6
+  yaml: 2.9.0
 overrides:
   vite: "catalog:"
 packageExtensions:
@@ -22,3 +34,5 @@ peerDependencyRules:
     - vite
   allowedVersions:
     vite: "*"
+allowBuilds:
+  msw: false

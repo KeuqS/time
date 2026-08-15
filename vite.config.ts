@@ -19,5 +19,13 @@ export default defineConfig({
   },
   run: {
     cache: true,
+    tasks: {
+      "ci:check": "vp check",
+      "ci:test": "vp test",
+      "ci:build": "vp run -r build",
+      "ssr:smoke": "vp run ssr-fixture#smoke",
+      "registry:smoke": "vp run registry#smoke",
+      "package:graph": ["vp run check:boundaries", "vp test tests/quality-gates.test.ts"],
+    },
   },
 });
