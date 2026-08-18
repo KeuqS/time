@@ -71,7 +71,11 @@ The application owns facts. The engine derives render models. React binds those 
 ```text
 time/
 ├── apps/
-│   ├── showcase/                 # documentation, examples, stress and DST labs
+│   ├── showcase/                 # Fumadocs documentation, examples, stress and DST labs
+│   │   ├── app/                  # Next.js routes, layouts, static search endpoint
+│   │   ├── content/docs/         # authored MDX library documentation
+│   │   ├── lib/source.ts         # sole runtime content loader
+│   │   └── source.config.ts      # collection schemas and MDX configuration
 │   └── ssr-fixture/              # render/hydrate verification in a real SSR boundary
 ├── packages/
 │   ├── calendar-temporal/        # standalone Temporal calendar utilities
@@ -104,7 +108,9 @@ time/
 └── architecture.html
 ```
 
-The existing `apps/website` and `packages/utils` starter directories should be renamed only when implementation begins. This architecture task does not silently repurpose them.
+`apps/showcase` is the only public documentation/vitrine application. Phase 3 task #68 replaces its
+placeholder shell with Fumadocs and removes the empty `apps/website` starter; no second docs content
+tree is introduced.
 
 ### Published packages
 
@@ -132,6 +138,7 @@ Package versions move in lockstep until after `1.0`. The repository lockfile pin
 | Tailwind CSS 4 + shadcn registry      | Consumer-owned registry source     | Theme-token compatibility and source distribution                 | No runtime import in headless packages                            |
 | `fast-check` 4                        | Test workspace                     | Property-based interval, range, and index verification            | Development only                                                  |
 | Playwright + axe-core                 | Browser and SSR fixtures           | Browser, hydration, interaction, visual, and accessibility proof  | Development only                                                  |
+| Next.js 16 + Fumadocs           | `apps/showcase`                    | App Router SSG, typed MDX content, documentation layouts, navigation, and search | Application-only; absent from published package manifests and declarations |
 
 Exact patch versions are chosen and pinned when implementation begins. The architecture commits to the boundary and major line, not to an untested floating dependency.
 
@@ -884,6 +891,42 @@ Focused benchmark, SSR, registry-schema, and browser tasks become first-class Vi
 
 `apps/showcase` is both the product vitrine and the architectural proving ground.
 
+### Documentation platform boundary
+
+Phase 3 establishes this surface with the standard Next.js integration of `fumadocs-core`,
+`fumadocs-mdx`, and `fumadocs-ui`. Fumadocs is Next.js-first; using its documented App Router path
+avoids maintaining a local Vite/React Router adapter for content loading, layouts, search, and static
+generation. This choice applies only to the private showcase application. The published calendar
+remains compatible with any React-capable SSR framework and continues to be proved separately in
+`apps/ssr-fixture`.
+
+The content path is static-first and deterministic:
+
+```text
+content/docs/**/*.mdx
+  → source.config.ts schemas and MDX options
+  → generated Fumadocs source
+  → lib/source.ts loader
+  → app/docs/[[...slug]] page + generated navigation
+  → pre-rendered pages and static-compatible search index
+```
+
+Authored MDX and colocated example components are source. Generated Fumadocs artifacts are build
+inputs, never a second hand-edited content model. Direct docs URLs are pre-rendered, unknown slugs
+use the framework not-found boundary, and search requires no content database or hosted search
+service. The exact compatible Fumadocs, Next.js 16, and Tailwind CSS 4 patch versions are pinned by
+#68.
+
+One application owns both explanation and proof:
+
+- Phase 3 creates the overview, installation, architecture, and initial package/API navigation.
+- Each later feature issue adds its public-import example and documentation to that same content
+  tree when the contract becomes observable.
+- Phase 7 completes the full catalog, labs, ownership/upgrade guidance, and evidence links; it does
+  not replace or migrate the documentation platform.
+- Live examples import public package roots or installed registry source only. Fumadocs, Next.js,
+  generated source modules, and showcase helpers never enter published declarations.
+
 | Area              | Purpose                                                                     |
 | ----------------- | --------------------------------------------------------------------------- |
 | Overview          | Principles, quick install, package/registry choice                          |
@@ -967,12 +1010,15 @@ Gate: two calendars remain isolated; controlled values never lag a render; a thi
 
 Deliver:
 
+- Fumadocs content, navigation, static search, and production-build foundation;
+- initial overview, installation, architecture, and stable package/API pages;
 - month grid, multi-day lanes, overflow;
 - virtualized list/agenda;
 - registry source and initial shadcn token layer;
 - keyboard and screen-reader baseline.
 
-Gate: all-day/multi-day/overflow golden fixtures, RTL, SSR, and accessibility tests pass.
+Gate: the Fumadocs production site and search build from a clean checkout; month/list public examples,
+all-day/multi-day/overflow golden fixtures, RTL, SSR, and accessibility tests pass.
 
 ### Phase 4 — day/week time grid
 
@@ -1010,12 +1056,13 @@ Gate: 500-resource benchmark, multi-resource transactions, RTL, keyboard navigat
 
 Deliver:
 
-- complete showcase labs;
+- complete Fumadocs content and showcase labs on the phase 3 platform;
 - granular/full registry items;
-- docs, migration/diff workflow, testing package;
+- migration/diff and ownership workflows, testing package;
 - browser compatibility and package-size reports.
 
-Gate: every public claim links to a passing automated or recorded manual check; no showcase-only internal APIs.
+Gate: every public claim links to a passing automated or recorded manual check; navigation, search,
+and direct docs URLs pass in the production build; no showcase-only internal APIs.
 
 ### Phase 8 — recurrence package
 

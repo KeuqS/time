@@ -13,36 +13,37 @@ Time is planned as a dependency-driven program, not a sequence of oversized feat
 
 - 1 roadmap tracker: [#1](https://github.com/Moltenship/time/issues/1)
 - 9 phase epics, each attached to the tracker as a native sub-issue
-- 37 independently mergeable implementation tasks attached to their phase epics
-- 32 tasks with native GitHub `blocked by` relationships
+- 38 independently mergeable implementation tasks attached to their phase epics
+- 33 tasks with native GitHub `blocked by` relationships
 - 5 deliberately unblocked kickoff tasks
 - 5 outcome milestones
 - labels for `type`, `area`, `priority`, and `size`
 
 GitHub is the live execution state. This document is the readable map and operating agreement. When scope or dependencies change, update the issue relationship and this file in the same PR.
 
-## 2. Start here: the first five parallel lanes
+## 2. Current ready lanes
 
-These issues have no blockers and are safe to start from the current baseline.
+The foundation, engine, and headless React slices are complete. These issues have no open blockers
+and can start from the current baseline:
 
-| Lane                    | Start issue                                         | Purpose                                                              | Primary ownership while parallel                       |
-| ----------------------- | --------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| A — topology            | [#13](https://github.com/Moltenship/time/issues/13) | Establish the target monorepo and import boundaries                  | Workspace manifests, package/app/tool skeletons        |
-| B — React contract risk | [#18](https://github.com/Moltenship/time/issues/18) | Prove controlled external state, SSR snapshots, and typed factory DX | Isolated React experiment, tests, ADR                  |
-| C — time/index risk     | [#16](https://github.com/Moltenship/time/issues/16) | Prove the interval-index seam and DST wall-time geometry             | Isolated Temporal/index experiment, fixtures, ADR      |
-| D — interaction risk    | [#19](https://github.com/Moltenship/time/issues/19) | Prove the semantic dnd-kit adapter and pointer-frame model           | Isolated dnd experiment, traces, ADR                   |
-| E — resource risk       | [#20](https://github.com/Moltenship/time/issues/20) | Prove two-axis virtualization, sticky axes, focus, RTL, and SSR      | Isolated resource-timeline experiment, recordings, ADR |
+| Lane                         | Ready issue                                         | Purpose                                                                | Primary ownership while parallel                     |
+| ---------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| A — docs platform            | [#68](https://github.com/Moltenship/time/issues/68) | Establish Fumadocs before view examples and public guides multiply     | `apps/showcase`, `apps/website`, docs content/config |
+| B — view primitives          | [#28](https://github.com/Moltenship/time/issues/28) | Establish shadcn tokens, accessibility, and typed messages             | Shared registry primitives and theme source          |
+| C — time-grid engine         | [#32](https://github.com/Moltenship/time/issues/32) | Build pure wall-time geometry and business-interval strategy           | Core time-grid strategy, projection, and tests       |
+| D — semantic transactions    | [#35](https://github.com/Moltenship/time/issues/35) | Build the framework-independent change and optimistic-overlay contract | Core transaction and policy modules                  |
 
-Parallel-work rule: #13 owns production topology. Spike branches should keep disposable code in isolated experiment paths and merge durable conclusions as ADRs, tests, fixtures, or benchmark requirements. They must not establish competing production package layouts.
-
-After #13 closes, [#12](https://github.com/Moltenship/time/issues/12) and [#15](https://github.com/Moltenship/time/issues/15) become the next foundation work. After #12 also closes, [#14](https://github.com/Moltenship/time/issues/14) and [#21](https://github.com/Moltenship/time/issues/21) can begin.
+The Fumadocs task is intentionally in phase 3, not phase 7. It installs the content, navigation,
+search, and production-build boundary while the public surface is still small. View-owning issues
+then add consumer-equivalent examples incrementally; phase 7 completes the content and labs rather
+than migrating a mature standalone showcase into documentation.
 
 ## 3. Outcome milestones
 
 | Milestone                       | Epics                                                                                                                                                     | Product outcome                                                                                    | Exit signal                                                         |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | `0.1 — Foundation & contracts`  | [#9](https://github.com/Moltenship/time/issues/9), [#11](https://github.com/Moltenship/time/issues/11), [#3](https://github.com/Moltenship/time/issues/3) | Package graph, architecture contracts, risk proof, Temporal/index engines, React/custom-view spine | Epics 0–2 and gates #24/#27 close with performance and SSR evidence |
-| `0.2 — Read-only calendar`      | [#6](https://github.com/Moltenship/time/issues/6), [#4](https://github.com/Moltenship/time/issues/4)                                                      | Theme/a11y foundation plus month, list, day, and week views                                        | Gates #31 and #34 close in clean Vite and SSR consumers             |
+| `0.2 — Read-only calendar`      | [#6](https://github.com/Moltenship/time/issues/6), [#4](https://github.com/Moltenship/time/issues/4)                                                      | Fumadocs foundation plus theme/a11y, month, list, day, and week views                               | Gates #31 and #34 close in documentation, clean Vite, and SSR consumers |
 | `0.3 — Interaction & resources` | [#8](https://github.com/Moltenship/time/issues/8), [#10](https://github.com/Moltenship/time/issues/10)                                                    | Semantic transactions, keyboard and dnd input, resource columns, resource timeline                 | Gates #38 and #42 close at target density and browser coverage      |
 | `1.0 — Public release`          | [#5](https://github.com/Moltenship/time/issues/5)                                                                                                         | Registry, showcase, testing package, release artifacts, compatibility proof                        | Release audit #47 closes with no open p0/p1 release issue           |
 | `Post-1.0 — Recurrence`         | [#2](https://github.com/Moltenship/time/issues/2)                                                                                                         | Range-bounded recurrence, exceptions, detached occurrences                                         | Gate #49 closes without breaking base event/transaction contracts   |
@@ -82,6 +83,7 @@ flowchart LR
   I25 --> I26["#26 typed factory + views"]
   I26 --> I27["#27 React gate"]
   I15 --> I27
+  I27 --> I68["#68 Fumadocs foundation"]
 
   I26 --> I28["#28 theme + a11y + i18n"]
   I22 --> I29["#29 month"]
@@ -91,6 +93,7 @@ flowchart LR
   I28 --> I30
   I27 --> I31["#31 month/list gate"]
   I29 --> I31
+  I68 --> I31
   I30 --> I31
 
   I22 --> I32["#32 time-grid geometry"]
@@ -133,6 +136,7 @@ flowchart LR
   I38 --> I44
   I42 --> I44
   I43 --> I44
+  I68 --> I44
   I27 --> I45["#45 testing package"]
   I38 --> I45
   I42 --> I45
@@ -158,7 +162,7 @@ The phases describe product maturity. Workstreams describe who can work without 
 | Source views       | #28 → #29/#30 and #32 → #33 | `registry/`, view strategies/projections/layouts             | Strategy/layout stays pure; renderer source remains replaceable |
 | Interaction        | #19 → #35 → #36/#37 → #38   | transaction/policy core, `calendar-dnd`, interaction tests   | dnd-kit never leaks into semantic callbacks                     |
 | Resources          | #20 → #39 → #40/#41 → #42   | resource projections and view-specific adapters              | Columns and timeline may proceed in parallel after #39          |
-| Product/release    | #43/#45 → #44/#46 → #47     | registry build, showcase, testing package, release tooling   | Showcase cannot receive internal-only escape hatches            |
+| Product/release    | #68 → #44 and #43/#45 → #44/#46 → #47 | `apps/showcase`, docs content, registry build, testing package, release tooling | Establish Fumadocs in phase 3; showcase examples use public APIs only |
 
 When two tasks touch the same public contract, split the contract change into the earlier blocking issue instead of resolving it through parallel incompatible implementations.
 
@@ -169,7 +173,7 @@ The longest dependency chain is not the only useful order. Deliver in demonstrab
 1. **Foundation slice:** #13, #12, #14, #15 plus spikes #16/#18/#19/#20.
 2. **Engine slice:** #21–#24 proves time/index correctness and target performance.
 3. **Headless React slice:** #25–#27 proves controlled state, SSR, typed composition, and custom views.
-4. **First visible slice:** #28–#31 installs month/list into clean consumers.
+4. **First visible slice:** #68 and #28–#31 establish Fumadocs, then install month/list into clean consumers and the public docs surface.
 5. **Time-grid slice:** #32–#34 adds useful day/week scheduling with DST/business hours.
 6. **Interaction slice:** #35–#38 adds semantic create/move/resize through all input methods.
 7. **Resource slice:** #39–#42 adds both virtualized resource views.
@@ -181,6 +185,10 @@ The most likely v1 critical spine is:
 #13 → #12 → #21 → #23 → #25 → #26 → #28 → #32 → #33
   → #35 → #37 → #38 → #39 → #40/#41 → #42 → #43 → #44/#46 → #47
 ```
+
+The documentation spine is `#27 → #68 → #31 → #44`: platform work starts from the stable public
+React contract, phase 3 proves the first visible examples, and phase 7 fills the established surface
+with the complete view, interaction, resource, registry, and evidence catalog.
 
 The spike and quality branches join that spine as hard gates. Closing feature code without its gate issue does not complete a milestone.
 
@@ -220,10 +228,11 @@ The spike and quality branches join that spine as hard gates. Closing feature co
 
 | Issue                                               | Work package                                     | Size | Blocked by         |
 | --------------------------------------------------- | ------------------------------------------------ | ---- | ------------------ |
+| [#68](https://github.com/Moltenship/time/issues/68) | Fumadocs documentation platform and content pipeline | M | #27                |
 | [#28](https://github.com/Moltenship/time/issues/28) | shadcn theme, accessibility, and i18n primitives | M    | #26, #15           |
 | [#29](https://github.com/Moltenship/time/issues/29) | Month strategy, layout, and registry view        | L    | #22, #23, #26, #28 |
 | [#30](https://github.com/Moltenship/time/issues/30) | Virtualized list/agenda strategy and view        | L    | #23, #26, #28      |
-| [#31](https://github.com/Moltenship/time/issues/31) | Gate: integrated read-only month/list slice      | M    | #27, #29, #30      |
+| [#31](https://github.com/Moltenship/time/issues/31) | Gate: integrated read-only month/list slice      | M    | #27, #29, #30, #68 |
 
 ### Phase 4 — day and week time grid ([epic #4](https://github.com/Moltenship/time/issues/4))
 
@@ -256,7 +265,7 @@ The spike and quality branches join that spine as hard gates. Closing feature co
 | Issue                                               | Work package                                            | Size | Blocked by                   |
 | --------------------------------------------------- | ------------------------------------------------------- | ---- | ---------------------------- |
 | [#43](https://github.com/Moltenship/time/issues/43) | Granular/full shadcn registry and compatibility         | L    | #29, #30, #33, #37, #40, #41 |
-| [#44](https://github.com/Moltenship/time/issues/44) | Showcase vitrine, labs, and documentation               | L    | #31, #34, #38, #42, #43      |
+| [#44](https://github.com/Moltenship/time/issues/44) | Complete Fumadocs showcase, labs, and documentation | L  | #31, #34, #38, #42, #43, #68 |
 | [#45](https://github.com/Moltenship/time/issues/45) | Public testing package and consumer fixtures            | M    | #27, #38, #42                |
 | [#46](https://github.com/Moltenship/time/issues/46) | Release automation, browser matrix, provenance, budgets | L    | #43, #45                     |
 | [#47](https://github.com/Moltenship/time/issues/47) | Gate: v1 architecture and release audit                 | M    | #44, #46                     |
