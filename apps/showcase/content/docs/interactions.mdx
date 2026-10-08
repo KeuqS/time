@@ -1,0 +1,150 @@
+---
+title: Interactions
+description: Save moved, resized, created, and deleted events, show them while they save, and decide which changes to allow.
+---
+
+Time never edits your events itself. When someone moves, resizes, creates, or deletes an event, the
+calendar **proposes a change**. Your `onEventChange` handler saves it and updates your events. While
+it saves, the calendar shows the change as **pending**; if saving fails, the event goes back to where
+it was.
+
+This page uses the `Calendar` and `Meeting` from the [Quick start](/docs/quick-start).
+
+## Saving changes
+
+Pass `onEventChange` to `Root`. Without it, the calendar is read-only.
+
+<include meta='title="editable-calendar.tsx"'>../examples/editing.tsx#root</include>
+
+The handler receives a change object:
+
+| Field      | Contents                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| `cause`    | `"move"`, `"resize-start"`, `"resize-end"`, `"create"`, `"delete"`, or `"update"`                    |
+| `eventId`  | The event's ID, or `null` for `"create"`                                                             |
+| `event`    | Your record, or `null` for `"create"`                                                                |
+| `original` | Where the event was, as the user saw it, or `null` for `"create"`                                    |
+| `proposed` | Where it should go: a range with `kind`, `start`, `end`, and `resourceIds`, or `null` for `"delete"` |
+| `id`       | Identifies the change within this calendar, such as `change-3`. It isn't an event ID                 |
+
+`applyChange` turns a change into new state. A created event needs an ID of your own, usually from
+your server; this example makes one up. Records you don't touch stay the same objects, which keeps
+re-rendering cheap:
+
+<include meta='title="editable-calendar.tsx"'>../examples/editing.tsx#apply</include>
+
+## Pending changes
+
+How long a change stays pending depends on your handler:
+
+- **A handler that returns nothing** (or doesn't `await`) commits the change right away. Update your
+  events in the same handler.
+- **A handler that returns a promise** keeps the change pending until the promise settles. The event
+  shows in its new place in the meantime.
+  - If the promise resolves, the calendar keeps showing the change until your `events` next change.
+    From then on your `events` decide where the event is, so include the saved change in that
+    update, as `setMeetings` does in the example. If another update arrives first, such as a
+    refetch that doesn't have the change yet, the event moves to where that update puts it.
+  - If it rejects or the handler throws, the change is undone.
+
+<include meta='title="editable-calendar.tsx"'>../examples/editing.tsx#save</include>
+
+Pending events have `isPending: true` in projections, in `meta.eventSnapshot`, and in
+`Calendar.Event`. The built-in views render them at 60% opacity: the week and day views set
+`data-pending` on them, and the month and agenda views set `aria-busy`. Target those attributes to
+style pending events your own way.
+
+If the same event changes again before the first change finishes saving, the calendar shows the
+newer change. Your handler still receives both, and their saves can finish in either order, or one
+can fail. The example numbers each change as it starts. When a save succeeds, it updates the state
+only if no newer change to that event has been applied yet. So a slow save never replaces a newer
+saved edit, and if the newer save fails, the older one that succeeded is still shown. Your server
+needs the same care, for example by rejecting writes that carry an outdated version.
+
+## Policies
+
+Policies decide which changes are allowed. Each one looks at a change and accepts it, adjusts it,
+or rejects it. They run in order, and each sees the change as adjusted by the ones before it. Pass
+them to `Root` as `policies`, as in the example above.
+
+| Policy                                   | What it does                                                                                                               |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `snapPolicy({ minutes: 15 })`            | Rounds timed changes to a grid in the calendar's time zone                                                                 |
+| `minimumDurationPolicy({ minutes: 15 })` | Lengthens timed events that would be shorter than the minimum                                                              |
+| `boundsPolicy({ start, end })`           | Rejects changes that end up outside the given instants                                                                     |
+| `readOnlyPolicy()`                       | Rejects changes to events your adapter marks with `isReadOnly`. `Root` always runs it first, so you don't need to pass it. |
+
+A policy is a function, so you can write your own. This one keeps meetings out of the all-day row.
+Policies can also be `async`, for example to check availability on your server.
+
+<include meta='title="editable-calendar.tsx"'>../examples/editing.tsx#policies</include>
+
+## Changing events from your own UI
+
+Buttons, forms, and dialogs can propose changes too, with `proposeEventChange` from
+`useCalendarActions()` (or the `actions` prop inside a view). The change goes through the same
+policies, pending state, and handler as a drag. The returned promise tells you how it ended; it
+never rejects.
+
+<include meta='title="push-back-button.tsx"'>../examples/editing.tsx#propose</include>
+
+A rejected result has a `reason`:
+
+| `reason`            | Meaning                                                           |
+| ------------------- | ----------------------------------------------------------------- |
+| `read-only`         | The event is read-only, or `Root` has no `onEventChange`          |
+| a policy's reason   | A policy rejected it, such as `out-of-bounds`                     |
+| `superseded`        | A newer change for the same event replaced it                     |
+| `handler-error`     | Your handler threw or its promise rejected; `error` has the cause |
+| `policy-error`      | A policy threw                                                    |
+| `invalid-placement` | The proposed range is empty or reversed                           |
+| `unknown-event`     | No event has that ID                                              |
+
+To create an event, propose `{ cause: "create", proposed: { kind, start, end } }`. To delete one,
+propose `{ cause: "delete", eventId }`.
+
+## Drag, resize, and create
+
+Once `Root` has an `onEventChange` handler, the built-in views let people edit events with the
+mouse, a pen, or touch:
+
+| View         | Move                                                                 | Resize                      | Create                                          |
+| ------------ | -------------------------------------------------------------------- | --------------------------- | ----------------------------------------------- |
+| Week and day | Across days and times. Dropping on the all-day row makes it all-day. | Drag the top or bottom edge | Drag across empty time, or across all-day cells |
+| Month        | Across days. Timed events keep their time.                           | –                           | Drag across days to make an all-day event       |
+
+Each finished drag sends exactly one change to your handler, so the policies and pending state above
+apply. A few details:
+
+- Times snap to 15 minutes, and a resized event keeps at least one 15-minute slot.
+- A movement under 4px is a click, so clicking an event still works. The click that ends a drag
+  doesn't count as a click.
+- Escape cancels a drag, and so does dropping outside the view.
+- On touch screens, press and hold for a moment to start a drag, so swiping still scrolls.
+- The view scrolls when you drag near its top or bottom edge.
+- Read-only events (your adapter's `isReadOnly`) can't be dragged and have no resize handles.
+- While dragging, the original event dims (it has `data-dragging`) and a preview follows the
+  pointer. Dragging never re-renders the view.
+
+Clicking an empty slot doesn't create an event; creating needs a drag.
+
+### In your own views
+
+The built-in views use `useCalendarPointer`, and your views can too. Call it in the Renderer with
+the props the Renderer receives, and put the returned ref on the element that contains the days:
+
+<include meta='title="my-week-view.tsx"'>../examples/pointer-view.tsx#view</include>
+
+Pass `columns` only in time-grid views; a month grid finds days by their `data-date`. The hook reads
+these attributes from your markup:
+
+| Element                                        | Attribute                        |
+| ---------------------------------------------- | -------------------------------- |
+| A day column in a time grid, covering 24 hours | `data-date="2026-10-08"`         |
+| An all-day cell                                | `data-date="…" data-all-day`     |
+| A day cell in a month grid                     | `data-date="…"`                  |
+| An event (render it as a `<button>`)           | `data-event-id`                  |
+| A resize handle inside an event                | `data-resize="start"` or `"end"` |
+
+The [pointer layer reference](/docs/api/changes#pointer-layer) lists the hook's options and styling
+hooks.

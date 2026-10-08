@@ -51,7 +51,7 @@ bun add @moltenship/calendar react react-dom
 </Tabs>
 
 `@moltenship/calendar` is the only package you import. It includes the React components, the event
-engine, and the Temporal helpers. See [How it works](/docs/concepts/how-it-works) for what's inside.
+engine, the Temporal helpers, and the pointer interactions. See [How it works](/docs/concepts/how-it-works) for what's inside.
 
 ## Temporal
 
@@ -90,27 +90,38 @@ your app and then own, the same way shadcn/ui works:
 - `registry/calendar-theme`: `calendar-theme.css` (calendar tokens and event colors) and
   `event-colors.ts` (the color names). See [Theming](/docs/theming).
 - `registry/calendar`: `CalendarToolbar`, `ViewSwitcher`, `EventChip`, and `MiniMonth`.
+- `registry/time-grid-view`, `registry/month-view`, and `registry/list-view`: the
+  [week and day](/docs/views/week-and-day), [month](/docs/views/month), and
+  [agenda](/docs/views/agenda) views.
+
+<Callout type="warn" title="Moving to Base UI">
+  shadcn/ui now sets up Base UI primitives by default, and the registry files are being updated to
+  match. Until that update lands, the copied toolbar and month view don't compile against Base UI
+  primitives. To see the views working in the meantime, open the [live
+  demo](https://moltenship-time-demo.vercel.app).
+</Callout>
 
 There's no `shadcn add` command for these files yet, so copy them by hand:
 
 <Steps>
 <Step>
 
-Set up [shadcn/ui](https://ui.shadcn.com/docs/installation) with Tailwind CSS 4 and its **Radix**
-primitives. The copied files use Radix's `asChild` prop, so they don't compile against the Base UI or
-React Aria versions of the primitives. In a new app, choose Radix when you initialize:
+Set up [shadcn/ui](https://ui.shadcn.com/docs/installation) with Tailwind CSS 4 if your app
+doesn't use it yet:
 
 ```bash
-npx shadcn@latest init --base radix
+npx shadcn@latest init
 ```
 
-In an existing app, check that `style` in `components.json` starts with `radix-`. Then add the
-primitives the files import, and the icons if your app doesn't have them yet:
+Then add the primitives the files import, and the icons if your app doesn't have them yet:
 
 ```bash
-npx shadcn@latest add button select tooltip
+npx shadcn@latest add button popover select tooltip
 pnpm add lucide-react
 ```
+
+shadcn's tooltip also needs a `TooltipProvider` at the root of your app, as its
+[installation notes](https://ui.shadcn.com/docs/components/tooltip) describe.
 
 </Step>
 <Step>

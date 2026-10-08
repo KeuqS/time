@@ -4,7 +4,7 @@ description: What each package exports, and where to import it from.
 ---
 
 Import from `@moltenship/calendar`. It includes the React components and hooks, the event engine,
-and the Temporal helpers, so one import line covers everything:
+the Temporal helpers, and the pointer interactions, so one import line covers everything:
 
 ```ts
 import { createCalendar, defineCalendarView, plainDateInterval } from "@moltenship/calendar";
@@ -22,6 +22,11 @@ import { createCalendar, defineCalendarView, plainDateInterval } from "@moltensh
     description="Adapters, ranges, validation, snapshots, and queries."
   />
   <Card
+    title="Event changes"
+    href="/docs/api/changes"
+    description="Proposals, changes, policies, placement helpers, and the pointer layer."
+  />
+  <Card
     title="State store"
     href="/docs/api/store"
     description="Calendar state without Root, and sharing a store with Root."
@@ -37,10 +42,11 @@ import { createCalendar, defineCalendarView, plainDateInterval } from "@moltensh
 
 | Package                         | Contents                                                         | Dependencies                                          |
 | ------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------- |
-| `@moltenship/calendar`          | Re-exports the three packages below                              | Those three; React 19 (peer)                          |
+| `@moltenship/calendar`          | Re-exports the four packages below                               | Those four; React 19 (peer)                           |
 | `@moltenship/calendar-react`    | `createCalendar`, `defineCalendarView`, components, hooks, store | `calendar-core`, `calendar-temporal`; React 19 (peer) |
 | `@moltenship/calendar-core`     | Adapters, validation, snapshots, queries. No React.              | `calendar-temporal`, `@flatten-js/interval-tree`      |
 | `@moltenship/calendar-temporal` | Ranges, grids, rounding, zoned days, DST                         | None                                                  |
+| `@moltenship/calendar-dnd`      | Pointer drag, resize, and create for views                       | `calendar-core`, `calendar-temporal`; React 19 (peer) |
 
 Every package is ESM only. Import from the package name: paths inside a package aren't part of the
 API.
