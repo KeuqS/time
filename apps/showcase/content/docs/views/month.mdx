@@ -27,6 +27,27 @@ export const Calendar = createCalendar<Meeting>()({
 
 The view is named `month`. Previous and Next move by one month.
 
+## Anatomy
+
+`MonthView` renders the parts below. The view builds them itself from its projection, so they're not
+parts you compose: to change one, edit it in the `registry/month-view` files you copied. The tree
+shows where each part lives.
+
+<MonthAnatomy />
+
+```txt title="Rendered by MonthView"
+MonthView                        month-view.tsx
+├── Weekday header
+└── MonthWeekRow                 month-week.tsx, one per week
+    ├── Day cell                 data-date
+    │   └── DateButton           aria-current="date" on today
+    ├── MonthEvent               month-event.tsx
+    └── MoreEvents               "+N more" and its popover
+```
+
+A bar is a `MonthEvent` with `bar` set. `startsBefore` and `endsAfter` mark the ends that continue
+into another week, and days with `inMonth: false` are muted.
+
 ## Options
 
 <TypeTable
