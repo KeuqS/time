@@ -35,7 +35,12 @@ const expectedWorkspaceDependencies = {
     "@moltenship/calendar-dnd",
     "@moltenship/calendar-temporal",
   ],
-  benchmark: ["@moltenship/calendar-core", "@moltenship/calendar-react", "fixtures"],
+  benchmark: [
+    "@moltenship/calendar-core",
+    "@moltenship/calendar-react",
+    "@moltenship/calendar-temporal",
+    "fixtures",
+  ],
   demo: ["@moltenship/calendar"],
   fixtures: ["@moltenship/calendar-core"],
   registry: [],
@@ -83,7 +88,7 @@ async function cruiseWithArchitectureRules(roots: string[]) {
   return result.output as ICruiseResult;
 }
 
-describe.sequential("workspace boundaries", () => {
+describe("workspace boundaries", { concurrent: false }, () => {
   test("production source obeys the dependency rules", async () => {
     const result = await cruiseWithArchitectureRules(productionRoots);
 
