@@ -11,6 +11,7 @@ import {
 import type { WallTimeSnapOptions } from "@moltenship/calendar-temporal";
 
 import { autoScroll, scrollableAncestor } from "./auto-scroll";
+import { eventIdOf } from "./event-id";
 import {
   createdPlacement,
   movedPlacement,
@@ -37,8 +38,11 @@ export interface CalendarPointerOptions<
   readonly disabled?: boolean;
   /** Extra classes for the preview segments. */
   readonly ghostClassName?: string;
-  /** Scrolled while dragging near its edges. Defaults to the nearest scrollable ancestor. */
-  readonly scrollContainer?: HTMLElement | null;
+  /**
+   * A ref to the element scrolled while dragging near its edges. Defaults to the nearest scrollable
+   * ancestor of where the drag starts.
+   */
+  readonly scrollContainer?: { readonly current: Element | null };
   /** Wall-clock grid for time columns. Defaults to 15 minutes. */
   readonly snap?: WallTimeSnapOptions;
 }
@@ -71,7 +75,7 @@ interface Session<TEvent, TEventId extends EventId, TResourceId extends Resource
   point: { readonly x: number; readonly y: number };
   readonly pointerId: number;
   readonly pointerType: string;
-  readonly scrollContainer: HTMLElement;
+  readonly scrollContainer: Element;
   readonly surface: TargetSurface;
 }
 
@@ -104,15 +108,21 @@ function samePlacement(left: CalendarEventPlacement, right: CalendarEventPlaceme
   );
 }
 
-/** `data-event-id` is always a string; numeric event IDs are matched by value. */
+/**
+ * The event an element renders. Without `data-event-id-type`, an ID that only exists as a number
+ * still resolves, which keeps all-numeric calendars working with plain `data-event-id`.
+ */
 function resolveEvent<TEvent, TEventId extends EventId, TResourceId extends ResourceId>(
   events: EventSnapshot<TEvent, TEventId, TResourceId>,
-  key: string,
+  element: Element,
 ): NormalizedCalendarEvent<TEvent, TEventId, TResourceId> | undefined {
-  const numeric = Number(key);
+  const id = eventIdOf(element) as TEventId;
+  const numeric = Number(id);
   return (
-    events.get(key as TEventId) ??
-    (Number.isFinite(numeric) ? events.get(numeric as TEventId) : undefined)
+    events.get(id) ??
+    (typeof id === "string" && Number.isFinite(numeric)
+      ? events.get(numeric as TEventId)
+      : undefined)
   );
 }
 
@@ -120,7 +130,8 @@ function resolveEvent<TEvent, TEventId extends EventId, TResourceId extends Reso
  * Adds pointer move, resize, and create to a rendered view through delegated listeners on one
  * region. The view marks its parts with data attributes:
  *
- * - `data-event-id` on events, with `data-resize="start"` or `"end"` on resize handles;
+ * - `data-event-id` on events (spread `eventIdAttributes(id)` to keep numeric IDs distinct), with
+ *   `data-resize="start"` or `"end"` on resize handles;
  * - `data-date` (an ISO date) on time-grid day columns and on day cells (month cells, or a time
  *   grid's all-day row, which also carries `data-all-day`).
  *
@@ -280,7 +291,7 @@ export function attachCalendarPointer<
     const element = pressed.closest<HTMLElement>("[data-event-id]");
     if (element === null || !region.contains(element)) return { anchor: target, kind: "create" };
 
-    const event = resolveEvent(events, element.getAttribute("data-event-id")!);
+    const event = resolveEvent(events, element);
     if (event === undefined || event.isReadOnly) return null;
     const base = { element, event, grab: target, original: eventPlacement(event) };
     const handle = pressed.closest("[data-resize]");
@@ -314,7 +325,7 @@ export function attachCalendarPointer<
       point: { x: event.clientX, y: event.clientY },
       pointerId: event.pointerId,
       pointerType: event.pointerType,
-      scrollContainer: options.scrollContainer ?? scrollableAncestor(region),
+      scrollContainer: options.scrollContainer?.current ?? scrollableAncestor(event.target),
       surface,
     };
     session = current;
