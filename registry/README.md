@@ -32,15 +32,16 @@ map `@registry/ui/*` and `@registry/lib/utils` to the consumer's `components.jso
 - Import shared source through the `@registry/*` alias: `@registry/ui/button`,
   `@registry/calendar/event-chip`, `@registry/calendar-theme/event-colors`. Files inside one item
   may import each other relatively.
-- Registry source imports only the public calendar packages (`@moltenship/calendar`, plus
-  `@moltenship/calendar-temporal` until the facade re-exports it) and the UI dependencies declared
-  in `registry/package.json`. `dependency-cruiser.config.ts` enforces this.
+- Registry source imports only the calendar facade (`@moltenship/calendar`) and the UI
+  dependencies declared in `registry/package.json`. `dependency-cruiser.config.ts` enforces this.
 - Style with the theme tokens, not raw colours: `bg-calendar-event`, `border-calendar-grid`,
   `text-calendar-today`, `h-(--calendar-hour-height)`.
 - Event colours: a view accepts an optional `getEventColor?: (event) => CalendarEventColor` option
   and sets `data-color` on each event element (`EventChip` does this through its `color` prop).
   The theme maps `data-color` to the `--calendar-event`, `--calendar-event-foreground`, and
   `--calendar-event-border` tokens for light and dark themes.
+- Render each event as a `<button data-event-id={id}>` (the pointer layer's contract). Apps open
+  event details by delegating clicks on `[data-event-id]`, so views need no click callback.
 - Copy is English and lives in the source; consumers own and translate it. Dates are formatted
   with `Intl` from the calendar locale.
 
