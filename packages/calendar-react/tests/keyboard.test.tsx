@@ -3,11 +3,12 @@
 import {
   createCanonicalEventAdapter,
   type CalendarEventChange,
+  type CalendarFocus,
   type CalendarPolicy,
   type CalendarSpatialNavigationInput,
 } from "@moltenship/calendar-core";
 import { plainDateInterval, type PlainDateInterval } from "@moltenship/calendar-temporal";
-import { act } from "react";
+import { act, useState } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, test } from "vite-plus/test";
 
@@ -488,12 +489,26 @@ function PagedItem({ date }: { readonly date: Temporal.PlainDate }) {
   );
 }
 
+/** Hides or remounts the first day through the renderer's own state, as a popover might. */
+let hideFirstDay: ((hidden: boolean) => void) | undefined;
+let remountFirstDay: (() => void) | undefined;
+
 function PagedRenderer({ projection }: CalendarViewRendererProps<PlainDateInterval, undefined>) {
+  const [hidden, setHidden] = useState(false);
+  const [generation, setGeneration] = useState(0);
+  hideFirstDay = setHidden;
+  remountFirstDay = () => setGeneration((current) => current + 1);
   return (
     <div {...useCalendarKeyboard()}>
-      {[0, 1, 2].map((offset) => (
-        <PagedItem key={offset} date={projection.start.add({ days: offset })} />
-      ))}
+      {[0, 1, 2].map(
+        (offset) =>
+          (offset > 0 || !hidden) && (
+            <PagedItem
+              key={offset === 0 ? `0:${generation}` : offset}
+              date={projection.start.add({ days: offset })}
+            />
+          ),
+      )}
     </div>
   );
 }
@@ -515,8 +530,8 @@ const PagedCalendar = createCalendar<FixtureEvent>()({
   ],
 });
 
-test("paging back enters the previous range from its end, and forward from its start", async () => {
-  harness = await renderWithHarness(
+function mountPaged() {
+  return renderWithHarness(
     <PagedCalendar.Root
       defaultAnchorDate={Temporal.PlainDate.from("2026-10-08")}
       defaultTimeZone="UTC"
@@ -527,6 +542,55 @@ test("paging back enters the previous range from its end, and forward from its s
       <PagedCalendar.ActiveView />
     </PagedCalendar.Root>,
   );
+}
+
+test("focus returns to an element the view removes and restores on its own", async () => {
+  harness = await mountPaged();
+  await focus(cell(harness.container, "2026-10-08"));
+
+  await act(async () => hideFirstDay!(true));
+  expect(document.activeElement).toBe(document.body);
+  await act(async () => hideFirstDay!(false));
+  expect(focused()).toBe("2026-10-08");
+});
+
+test("a focus the application moves in the same commit wins over a remounted element", async () => {
+  const requests: string[] = [];
+  let control: ((focus: CalendarFocus | null) => void) | undefined;
+  function Controlled() {
+    const [focus, setFocus] = useState<CalendarFocus | null>(null);
+    control = setFocus;
+    return (
+      <PagedCalendar.Root
+        defaultAnchorDate={Temporal.PlainDate.from("2026-10-08")}
+        defaultTimeZone="UTC"
+        events={[]}
+        focus={focus}
+        locale="en-US"
+        onFocusChange={(next) => {
+          requests.push(next?.date.toString() ?? "none");
+          setFocus(next);
+        }}
+        weekRules={{ firstDay: 7, minimalDays: 1, weekend: [6, 7] }}
+      >
+        <PagedCalendar.ActiveView />
+      </PagedCalendar.Root>
+    );
+  }
+  harness = await renderWithHarness(<Controlled />);
+  await focus(cell(harness.container, "2026-10-08"));
+  expect(requests).toEqual(["2026-10-08"]);
+
+  await act(async () => {
+    control!({ date: Temporal.PlainDate.from("2026-10-09"), kind: "day" });
+    remountFirstDay!();
+  });
+  expect(focused()).toBe("2026-10-09");
+  expect(requests).toEqual(["2026-10-08"]);
+});
+
+test("paging back enters the previous range from its end, and forward from its start", async () => {
+  harness = await mountPaged();
   await focus(cell(harness.container, "2026-10-08"));
 
   await press("ArrowUp");
