@@ -103,7 +103,7 @@ export function MiniMonth({
 
   return (
     <div className={cn("w-full select-none", className)}>
-      <div className="flex items-center justify-between pb-1 pl-2">
+      <div className="flex items-center justify-between pb-1 ps-2">
         <h2 id={titleId} aria-live="polite" className="text-sm font-medium">
           {formats.month.format(month)}
         </h2>
@@ -115,7 +115,7 @@ export function MiniMonth({
             size="icon-sm"
             variant="ghost"
           >
-            <ChevronLeftIcon />
+            <ChevronLeftIcon className="rtl:rotate-180" />
           </Button>
           <Button
             aria-label="Next month"
@@ -124,7 +124,7 @@ export function MiniMonth({
             size="icon-sm"
             variant="ghost"
           >
-            <ChevronRightIcon />
+            <ChevronRightIcon className="rtl:rotate-180" />
           </Button>
         </div>
       </div>
@@ -168,10 +168,10 @@ export function MiniMonth({
                       isVisible && "bg-calendar-selection",
                       isVisible &&
                         (column === 0 || day.equals(visibleRange.start)) &&
-                        "rounded-l-full",
+                        "rounded-s-full",
                       isVisible &&
                         (column === 6 || (lastVisibleDate && day.equals(lastVisibleDate))) &&
-                        "rounded-r-full",
+                        "rounded-e-full",
                     )}
                   >
                     <button
@@ -182,7 +182,8 @@ export function MiniMonth({
                       tabIndex={day.equals(tabStop) ? 0 : -1}
                       className={cn(
                         "mx-auto flex size-7 items-center justify-center rounded-full text-xs tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
-                        !isSameMonth(day, month) && "text-muted-foreground",
+                        // Muted text is under 4.5:1 on the range band.
+                        !isSameMonth(day, month) && !isVisible && "text-muted-foreground",
                         isSelected && "font-semibold text-calendar-today",
                         isToday &&
                           "bg-calendar-today font-semibold text-calendar-today-foreground hover:bg-calendar-today/90",
