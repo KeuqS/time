@@ -249,6 +249,7 @@ accepts that element's usual props, including `className`, `style`, `ref`, and e
 | `Viewport`        | `<div>`     | Wrapper for the view. Gets the `{id}-viewport` ID.                                    |
 | `ActiveView`      | view output | Renders the active view, or `fallback` if it isn't registered.                        |
 | `Event`           | your output | Looks up one event by `eventId` and calls `children` with it.                         |
+| `Announcer`       | `<div>`     | A hidden live region that speaks moves, resizes, and creates. Requires `messages`.    |
 
 - The buttons default to `type="button"` and set `aria-controls` to the viewport. Give each one
   text or an `aria-label`.
@@ -286,6 +287,10 @@ outside `Root` throws `calendar-hook-outside-root`.
 
 `useCalendarSelector` compares results with `Object.is`. Pass `{ isEqual }` to compare another way.
 The selector can be an inline function.
+
+`Announcer`'s messages, and the keyboard hooks for your own views (`useCalendarKeyboard`,
+`useRovingFocus`, `useCalendarInteraction`, `useCalendarAnnouncer`), are covered in
+[Accessibility](/docs/accessibility#announcements).
 
 `useNow({ intervalMs })` is exported on its own, not from your calendar. It returns the current
 instant from the nearest `Root`'s `now` or `clock`, or the system clock, and samples it every

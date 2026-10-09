@@ -80,3 +80,20 @@ from `dayIndex` and `dayCount`.
   `aria-busy` and render at 60% opacity.
 
 Each day has `data-date`, and each event is a `<button>` with `data-event-id`.
+
+## Keyboard
+
+Tab into the preview above and try these keys. The [Accessibility](/docs/accessibility#keyboard)
+page has the full map.
+
+| Focus                  | Key                          | Effect                                  |
+| ---------------------- | ---------------------------- | --------------------------------------- |
+| An event               | ↑ ↓                          | Previous or next event                  |
+| An event               | Page Up, Page Down           | First event of the previous or next day |
+| An event               | Home, End                    | First or last event                     |
+| An event               | Enter                        | Open it, as a click does                |
+| An event               | Shift+Enter                  | Open its date in the day view           |
+| A range without events | ↑ or Page Up, ↓ or Page Down | The previous or next range              |
+
+Moving past the first or last event shows the previous or next weeks. The agenda doesn't move or
+create events from the keyboard, since it has no days or times to move them to.

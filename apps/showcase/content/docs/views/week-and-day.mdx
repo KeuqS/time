@@ -113,6 +113,31 @@ The day view works on narrow screens:
 
 <CalendarPreview view="day" />
 
+## Keyboard
+
+Tab into the preview above, or click a slot, and try these keys. The
+[Accessibility](/docs/accessibility#keyboard) page has the full map and what a screen reader hears.
+
+| Focus           | Key                | Effect                                                                            |
+| --------------- | ------------------ | --------------------------------------------------------------------------------- |
+| An all-day cell | ↓                  | First slot of the day                                                             |
+| A slot          | ↑ ↓                | Previous or next 15-minute slot. Up from the first slot reaches the all-day cell  |
+| A day or slot   | ← →                | Same slot on the previous or next day                                             |
+| A day or slot   | Home, End          | First or last day shown                                                           |
+| A day or slot   | Page Up, Page Down | Back or forward a whole week (or day)                                             |
+| A slot          | Enter              | The event covering it. Escape goes back to the slot it starts in                  |
+| An all-day cell | Enter              | Go into the day's all-day events                                                  |
+| A timed event   | ↑ ↓, ← →           | Previous or next event in the column, or the event beside it that overlaps it     |
+| A day or slot   | Shift+Enter        | Open that date in the day view, when the week has `dayView`                       |
+| A slot          | Space              | Start an hour-long event there. Arrow keys extend it, and Enter saves it          |
+| An all-day cell | Space              | Start an all-day event there                                                      |
+| An event        | Space              | Pick it up. Arrow keys move it by slots and days, Enter saves, and Escape cancels |
+| An event        | Shift+Space        | Pick up its end to resize it. Shift+Space again switches to its start             |
+
+Moving a picked-up timed event above the first slot makes it all-day, and moving an all-day event
+below the all-day row makes it timed. Only the focused slot is an element, so a week's 672 slots
+cost nothing until you visit them.
+
 ## Markup for interactions
 
 The view connects the pointer layer for you. If you change its markup, keep the attributes the
