@@ -46,7 +46,9 @@ app's own shortcuts, even where there's nowhere to move.
 | Agenda    | A range without events       | ↑ or Page Up, ↓ or Page Down | The previous or next range                                                                              |
 
 Shift+Enter opens the view named `day`. In the week view it needs the
-[`dayView`](/docs/views/week-and-day#options) option, and the day view has nothing to open.
+[`dayView`](/docs/views/week-and-day#options) option, and the day view has nothing to open. The
+table shows left-to-right calendars; with `direction="rtl"` on `Root`, ← and → swap so they follow
+the layout (see [Right-to-left](#right-to-left)).
 
 ### Changing events
 
@@ -79,7 +81,14 @@ Keyboard and pointer moves, resizes, and creates are announced through a polite 
 ```tsx title="calendar.tsx"
 import { calendarAnnouncements } from "@/components/calendar/announcements";
 
-<Calendar.Root events={meetings} onEventChange={saveMeeting}>
+<Calendar.Root
+  defaultAnchorDate={Temporal.PlainDate.from("2026-10-08")}
+  defaultTimeZone="Europe/Berlin"
+  events={meetings}
+  locale="en-US"
+  onEventChange={saveMeeting}
+  weekRules={{ firstDay: 1, minimalDays: 4, weekend: [6, 7] }}
+>
   <Calendar.Announcer messages={calendarAnnouncements} />
   <Calendar.ActiveView />
 </Calendar.Root>;
@@ -132,9 +141,12 @@ export const announcementsDe: CalendarAnnouncementMessages = {
 };
 ```
 
-`formatRange` follows the calendar's `locale`. To change how ranges read, in announcements and on
-the drag preview alike, add an optional `formatRange(placement, { locale, timeZone })` to your
-messages; the default is `formatPlacementRange`.
+`formatRange` follows the calendar's `locale`. To change how ranges read, add an optional
+`formatRange(placement, { locale, timeZone })` to your messages; the default is
+`formatPlacementRange`. It labels the drag preview and becomes the context's `formatRange`, so it
+changes spoken ranges only in builders that call that helper, as the German example does.
+`calendarAnnouncements` spells dates out with `describeWhen` from `event-label.ts` instead; edit
+that to change how its announcements read.
 
 ### Pointer gestures
 
@@ -209,14 +221,26 @@ select, and tooltip, which you install from shadcn.
 
 ## Right-to-left
 
-Set `dir="rtl"` on an ancestor of the calendar, such as `<html>`. The month, week, day, and agenda
-views mirror: days run from right to left, the hour gutter moves to the right, events put their
-accent edge on the right, continuation chevrons point the way the event continues, and the
-toolbar's arrows turn around. The views use logical CSS properties throughout (`ms-*`, `border-s`, `start-*`), so your own
-edits should too.
+Right-to-left takes two settings: `dir="rtl"` on an ancestor of the calendar, such as `<html>`,
+for the layout, and `direction="rtl"` on `Root` for the keys. `Root` doesn't read the page's
+`dir`, so set both:
 
-The arrow keys aren't mirrored yet: ← still means the previous day, which an RTL grid shows on the
-right.
+```tsx
+<html dir="rtl" lang="ar">
+  <body>
+    <Calendar.Root {...rootProps} direction="rtl" locale="ar">
+      <Calendar.ActiveView />
+    </Calendar.Root>
+  </body>
+</html>
+```
+
+The month, week, day, and agenda views then mirror: days run from right to left, the hour gutter
+moves to the right, events put their accent edge on the right, continuation chevrons point the way
+the event continues, and the toolbar's arrows turn around. ← and → follow the layout, so ← moves to
+the next day, which an RTL grid shows on the left, and a picked-up event moves the same way. The
+views use logical CSS properties throughout (`ms-*`, `border-s`, `start-*`), so your own edits
+should too.
 
 ## In your own views
 
