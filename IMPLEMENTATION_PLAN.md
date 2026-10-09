@@ -18,8 +18,11 @@ shipped as shadcn-style registry source. This file is the short map. Issues hold
 | 0.1 views      | #70, #28–#30, #32, #33 | View pipeline; theme and shell primitives; month, agenda, week and day views in `registry/`            |
 | 0.1 editing    | #35, #37         | Transactions with optimistic overlay; native Pointer Events move, resize and create in `calendar-dnd`        |
 | 0.1 demo, docs | #71–#73, #100    | Demo app, rewritten docs with live previews and anatomy diagrams, landing page with a live week view         |
+| 0.2 keyboard   | #36, #97         | Focus model, spatial navigation, keyboard move/resize/create, announcements; wired into every view and the demo |
+| 0.2 a11y       | #98              | axe checks in CI (`vp run a11y`), token contrast test, reduced motion, RTL layout, accessibility docs         |
 
-0.1 — Working calendar is closed. Deployed from `main`:
+0.1 — Working calendar and 0.2 — Keyboard & accessibility are closed. `main` deploys
+automatically through Vercel's GitHub integration:
 
 - Demo: https://moltenship-time-demo.vercel.app
 - Docs: https://moltenship-time.vercel.app
@@ -27,23 +30,13 @@ shipped as shadcn-style registry source. This file is the short map. Issues hold
 UI source uses shadcn's default Base UI primitives, not Radix. Dependencies are kept at their
 latest releases.
 
-## Next: 0.2 — Keyboard & accessibility
+## Next: 0.3 — Resource views
 
-Planned and rescoped, not started. Milestone:
-[0.2 — Keyboard & accessibility](https://github.com/Moltenship/time/milestone/2).
-
-| Issue | Scope                                                                                                         |
-| ----- | ------------------------------------------------------------------------------------------------------------- |
-| #36   | Keyboard engine: typed focus model, spatial navigation per view, keyboard transactions, announcement builders |
-| #97   | Keyboard and ARIA in the registry views and the demo, built on #36                                            |
-| #98   | Accessibility quality: axe checks in CI, token contrast, reduced motion, RTL layout, accessibility docs       |
-
-#36 comes first. #97 can start with ARIA semantics and focus styling, then wires keyboard
-behaviour once #36's API lands. #98 starts with axe and contrast and writes the keyboard docs
-after #36 and #97 merge.
-
-After 0.2 comes 0.3 — Resource views (#39–#42): resource hierarchy and projections first, then
-resource columns and the resource timeline in parallel.
+Not started; waiting for the go-ahead. Milestone:
+[0.3 — Resource views](https://github.com/Moltenship/time/milestone/3). The issues (#39–#42) still
+carry their original scope and get rescoped to Scope / Done when / Later before work starts:
+resource hierarchy and projections first, then resource columns and the resource timeline in
+parallel.
 
 ## Later
 
@@ -55,13 +48,11 @@ one is picked up.
 - Equal, compact and stacked overlap policies (#33)
 - Optional dnd-kit adapter (#37)
 - Layout and frame budgets, browser matrix
-- RTL key mapping (#36)
 
 Later milestones:
 
 | Milestone                      | Issues          | Scope                                                                         |
 | ------------------------------ | --------------- | ----------------------------------------------------------------------------- |
-| 0.3 — Resource views           | #39–#42         | Resource hierarchy and projections, resource columns, resource timeline       |
 | 1.0 — Public release           | #43, #45–#47    | shadcn registry distribution, testing package, release automation, audit      |
 | Post-1.0 — Recurrence          | #48, #49        | Range-bounded recurrence, exceptions, detached occurrences                    |
 
@@ -96,7 +87,7 @@ Scope / Done when / Later before starting it.
 - Pointer input uses native Pointer Events ([ADR 0037](./docs/adr/0037-native-pointer-events.md),
   superseding [ADR 0019](./docs/adr/0019-semantic-dnd-kit-adapter.md)). dnd-kit can return later as
   an optional adapter; the #19 spike stays as history.
-- Keyboard grab / move / resize comes in 0.2 (#36). Until then, pointer changes have equivalents
-  through the transaction API (#35) and the demo's event dialog (#71).
+- Keyboard grab / move / resize shipped in 0.2 (#36, #97) on the same transaction pipeline as
+  pointer input.
 - Each issue's "Done when" list replaces the "performance, accessibility, and browser evidence"
   invariant.
