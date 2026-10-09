@@ -6,7 +6,7 @@ import { seriousViolations } from "./axe";
 import { render } from "./render";
 
 describe("the axe gate", () => {
-  test("still fails rules with known #97 exceptions anywhere else", async () => {
+  test("exempt rules still fail outside the elements they exempt", async () => {
     await render(
       // A modal hides everything outside it, so the mislabelled button sits inside.
       <Dialog open>

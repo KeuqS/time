@@ -9,31 +9,21 @@ export function setTheme(theme: Theme) {
   document.documentElement.style.colorScheme = theme;
 }
 
-/** The popup a month's "+N more" trigger opens. */
-function isMonthOverflowPopup(element: Element | null): boolean {
-  return (
-    element !== null &&
-    document.querySelector(
-      `[aria-controls="${CSS.escape(element.id)}"][aria-label*=" more events on "]`,
-    ) !== null
-  );
-}
-
 type ElementFilter = Readonly<Record<string, (element: Element) => boolean>>;
 
 /** Elements a rule flags by design, with the reason. */
 const exemptions: ElementFilter = {
   // Base UI's focus guards are hidden, tabbable spans that pass focus straight on.
   "aria-hidden-focus": (element) => element.matches("[data-base-ui-focus-guard]"),
-  // Event names lead with the title and spell out the date, time, calendar, and state, which a
-  // chip abbreviates ("9:30 AM Standup"); speech input still matches the title. Day cells are
-  // named by date and event count, while their events are separate focus targets; and a month's
-  // first date shows "Oct 1" but is named "Thursday, October 1, 2026".
+  // Event names carry the title, the full date and time, the calendar and the saving state
+  // (#97), while each view's chip shows a shorter subset in its own order ("9:30 AM Standup").
+  // Names lead with the title, so speech input still matches it. A day cell's visible text
+  // includes its events, but it is named by date and event count: its events are focused apart.
   "label-content-name-mismatch": (element) =>
     element.matches('[data-slot="calendar-event"]') ||
-    element.closest('[data-slot="month-view"] [role="gridcell"]') !== null ||
-    element.closest('[data-slot="time-grid"] [role="gridcell"]') !== null ||
-    isMonthOverflowPopup(element.closest('[role="dialog"]')),
+    element.matches(
+      '[data-slot="month-view"] [role="gridcell"], [data-slot="time-grid"] [role="gridcell"]',
+    ),
   // WCAG 2.5.8 exempts targets whose size is essential: in the month and time grids an event's
   // box is its time span, and "+N more" fills the event lane it summarises.
   "target-size": (element) =>
