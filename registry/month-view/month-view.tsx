@@ -110,6 +110,12 @@ function useMonthFormats(locale: Intl.LocalesArgument): MonthFormats {
     const hourMinute = new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" });
     return {
       date: new Intl.DateTimeFormat(locale, { dateStyle: "full" }),
+      firstDate: new Intl.DateTimeFormat(locale, {
+        day: "numeric",
+        month: "short",
+        weekday: "long",
+        year: "numeric",
+      }),
       monthDay: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }),
       time: (time) => (time.minute === 0 ? hour : hourMinute).format(time),
       weekday: new Intl.DateTimeFormat(locale, { weekday: "short" }),

@@ -81,9 +81,28 @@ into another week, and days with `inMonth: false` are muted.
 - **Changes being saved:** events with a [pending change](/docs/interactions#pending-changes) get
   `aria-busy` and render at 60% opacity.
 
+## Keyboard
+
+Tab into the preview above, or click a day, and try these keys. The
+[Accessibility](/docs/accessibility#keyboard) page has the full map and what a screen reader hears.
+
+| Focus    | Key                | Effect                                                                        |
+| -------- | ------------------ | ----------------------------------------------------------------------------- |
+| A day    | ← →                | Previous or next day                                                          |
+| A day    | ↑ ↓                | Same weekday a week earlier or later                                          |
+| A day    | Home, End          | First or last day of the week                                                 |
+| A day    | Page Up, Page Down | Same day in the previous or next month                                        |
+| A day    | Enter              | Go into the day's events. ↑ ↓ walk them, and Escape goes back to the day      |
+| A day    | Shift+Enter        | Open the day in the day view                                                  |
+| A day    | Space              | Start an all-day event there. Arrow keys extend it, and Enter saves it        |
+| An event | Space              | Pick it up. Arrow keys move it by days, Enter saves, and Escape cancels       |
+| An event | Shift+Space        | Pick up its end to resize it by days. Shift+Space again switches to its start |
+
+Events behind "+N more" are reachable too: while focus is on one, its week shows every event.
+
 ## Markup for interactions
 
 The view connects the pointer layer for you. If you change its markup, keep the attributes it reads:
-each day cell has `data-date`, and each event is a `<button>` with `data-event-id`. Event bars sit
-on a layer above the cells that lets the pointer through everywhere except on events, so a drag can
-find the day under a bar.
+each day cell holds an element with `data-date` underneath its events, and each event is a
+`<button>` with `data-event-id`. The events sit beside that element, not inside it, so a drag over
+a bar still finds the day under the pointer.

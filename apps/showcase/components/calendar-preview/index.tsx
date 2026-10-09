@@ -27,9 +27,11 @@ export function CalendarPreview({ size, view = "week", ...props }: CalendarPrevi
         <PreviewIsland view={view} {...props} />
       </div>
       <figcaption className="mt-3 text-center text-sm text-fd-muted-foreground">
-        {view === "agenda" && props.switcher !== true
-          ? "Live, in your time zone."
-          : "Live, in your time zone. Drag to move, resize or create events."}
+        {props.announcements === true
+          ? "Live, in your time zone. Tab into the calendar or click a day, then try the keys below."
+          : view === "agenda" && props.switcher !== true
+            ? "Live, in your time zone."
+            : "Live, in your time zone. Drag to move, resize or create events."}
       </figcaption>
     </figure>
   );

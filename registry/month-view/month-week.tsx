@@ -24,6 +24,8 @@ export const LANE_HEIGHT = 22;
 
 export interface MonthFormats {
   readonly date: Intl.DateTimeFormat;
+  /** A month's first date, named with the short month it shows: "Thursday, Oct 1, 2026". */
+  readonly firstDate: Intl.DateTimeFormat;
   readonly monthDay: Intl.DateTimeFormat;
   readonly time: (time: Temporal.PlainTime) => string;
   readonly weekday: Intl.DateTimeFormat;
@@ -92,11 +94,12 @@ function DateButton({
   readonly onOpenDay: (date: Temporal.PlainDate) => void;
   readonly tabIndex?: number;
 }) {
+  const first = day.date.day === 1;
   return (
     <button
       type="button"
       aria-current={day.isToday ? "date" : undefined}
-      aria-label={formats.date.format(day.date)}
+      aria-label={(first ? formats.firstDate : formats.date).format(day.date)}
       onClick={() => onOpenDay(day.date)}
       tabIndex={tabIndex}
       className={cn(
@@ -107,7 +110,7 @@ function DateButton({
         className,
       )}
     >
-      {day.date.day === 1 ? formats.monthDay.format(day.date) : day.date.day}
+      {first ? formats.monthDay.format(day.date) : day.date.day}
     </button>
   );
 }

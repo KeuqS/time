@@ -4,8 +4,9 @@ import {
   defineEventAdapter,
   timeGridStrategy,
 } from "@moltenship/calendar";
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type CSSProperties } from "react";
 
+import { calendarAnnouncements } from "@registry/calendar/announcements";
 import { CalendarToolbar } from "@registry/calendar/calendar-toolbar";
 import { MiniMonth } from "@registry/calendar/mini-month";
 import { ViewSwitcher } from "@registry/calendar/view-switcher";
@@ -30,6 +31,8 @@ import {
 export type PreviewView = "week" | "day" | "month" | "agenda";
 
 export interface LiveCalendarProps {
+  /** Show what a screen reader hears in a strip under the calendar. */
+  readonly announcements?: boolean;
   /** Show the registry mini month beside the view on large screens. */
   readonly sidebar?: boolean;
   /** Add a view switcher for all four views. */
@@ -81,6 +84,16 @@ const viewOptions = (["week", "day", "month", "agenda"] as const).map((value) =>
   value,
 }));
 
+/** Undoes the announcer's visually hidden style, so the transcript strip can show it. */
+const shownAnnouncer: CSSProperties = {
+  clipPath: "none",
+  height: "auto",
+  margin: 0,
+  position: "static",
+  whiteSpace: "normal",
+  width: "auto",
+};
+
 const wideQuery = "(min-width: 640px)";
 
 function subscribeToWidth(onChange: () => void) {
@@ -112,6 +125,7 @@ function Sidebar({ today }: { readonly today: Temporal.PlainDate }) {
 
 /** The registry views over seeded events in the visitor's time zone; edits stay in memory. */
 export default function LiveCalendar({
+  announcements = false,
   sidebar = false,
   switcher = false,
   view,
@@ -167,6 +181,16 @@ export default function LiveCalendar({
               <Calendar.ActiveView />
             </Calendar.Viewport>
           </div>
+          {announcements ? (
+            <div className="flex min-h-11 shrink-0 items-center gap-3 border-t px-4 py-2 text-sm">
+              <span className="shrink-0 text-xs font-medium text-fd-muted-foreground uppercase">
+                Screen reader
+              </span>
+              <Calendar.Announcer messages={calendarAnnouncements} style={shownAnnouncer} />
+            </div>
+          ) : (
+            <Calendar.Announcer messages={calendarAnnouncements} />
+          )}
         </Calendar.Frame>
       </Calendar.Root>
     </TooltipProvider>

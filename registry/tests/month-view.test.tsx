@@ -72,7 +72,8 @@ test("renders whole weeks of date cells from the configured week start", async (
   expect(container.querySelector('[aria-current="date"]')?.getAttribute("aria-label")).toBe(
     "Thursday, October 8, 2026",
   );
-  expect(text(container.querySelector('[aria-label="Thursday, October 1, 2026"]'))).toBe("Oct 1");
+  // A month's first date shows "Oct 1", and its name contains what it shows.
+  expect(text(container.querySelector('[aria-label="Thursday, Oct 1, 2026"]'))).toBe("Oct 1");
 
   await cleanup?.();
   const monday = await renderMonth(1);
