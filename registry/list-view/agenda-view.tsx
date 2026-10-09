@@ -2,6 +2,7 @@ import {
   defineCalendarView,
   getListRange,
   getListTitle,
+  listSpatialNavigation,
   navigateList,
   projectList,
   type CalendarViewProjectionInput,
@@ -10,11 +11,13 @@ import {
   type ListProjection,
   type ListViewOptions,
   type ResourceId,
+  useRovingFocus,
 } from "@moltenship/calendar";
 import { CalendarX2Icon } from "lucide-react";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 
 import { useEventLabel, type EventDescriber } from "@registry/calendar/event-label";
+import { useViewKeyboard } from "@registry/calendar/view-keyboard";
 import type { CalendarEventColor } from "@registry/calendar-theme/event-colors";
 import { cn } from "cn";
 
@@ -44,6 +47,40 @@ function useAgendaFormats(locale: Intl.LocalesArgument) {
   );
 }
 
+/**
+ * A range without events, still the agenda's one tab stop: Up and Page Up from it page back, and
+ * Down and Page Down page on, so keyboard paging can cross empty weeks.
+ */
+function EmptyAgenda({
+  dates,
+  start,
+}: {
+  readonly dates: string;
+  readonly start: Temporal.PlainDate;
+}) {
+  const roving = useRovingFocus({ date: start, kind: "day" });
+  const id = useId();
+
+  return (
+    <div
+      role="group"
+      aria-labelledby={id}
+      {...roving}
+      onKeyDown={(event) => {
+        // Only for paging: the agenda has no cells, so Space must not start an event here.
+        if (event.key === " ") event.preventDefault();
+      }}
+      className="flex flex-col items-center gap-2 rounded-lg p-4 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+    >
+      <CalendarX2Icon aria-hidden className="mb-1 size-10 text-muted-foreground/60" />
+      <div id={id} className="flex flex-col gap-2">
+        <p className="font-medium">No events</p>
+        <p className="text-sm text-muted-foreground">Nothing is scheduled for {dates}.</p>
+      </div>
+    </div>
+  );
+}
+
 function AgendaView<TEvent>({
   actions,
   environment,
@@ -53,16 +90,23 @@ function AgendaView<TEvent>({
 }: AgendaViewProps<TEvent>) {
   const formats = useAgendaFormats(environment.locale);
   const labelEvent = useEventLabel(environment, options.describeEvent);
+  const keyboard = useViewKeyboard();
+  const openDay = (date: Temporal.PlainDate) => {
+    actions.setAnchorDate(date);
+    actions.setView("day");
+  };
 
   if (projection.days.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-        <CalendarX2Icon aria-hidden className="mb-1 size-10 text-muted-foreground/60" />
-        <p className="font-medium">No events</p>
-        <p className="text-sm text-muted-foreground">
-          Nothing is scheduled for{" "}
-          {formats.range.formatRange(range.start, range.end.subtract({ days: 1 }))}.
-        </p>
+      <div
+        {...keyboard}
+        data-slot="agenda-view"
+        className="flex h-full items-center justify-center p-6 text-center"
+      >
+        <EmptyAgenda
+          dates={formats.range.formatRange(range.start, range.end.subtract({ days: 1 }))}
+          start={range.start}
+        />
       </div>
     );
   }
@@ -70,6 +114,7 @@ function AgendaView<TEvent>({
   return (
     <ol
       aria-label={getListTitle(range, environment)}
+      {...keyboard}
       data-slot="agenda-view"
       className="h-full divide-y divide-calendar-grid overflow-y-auto"
     >
@@ -93,10 +138,9 @@ function AgendaView<TEvent>({
               type="button"
               aria-current={day.isToday ? "date" : undefined}
               aria-label={formats.date.format(day.date)}
-              onClick={() => {
-                actions.setAnchorDate(day.date);
-                actions.setView("day");
-              }}
+              onClick={() => openDay(day.date)}
+              // The list keeps one tab stop; Shift+Enter on an event opens its day.
+              tabIndex={-1}
               className={cn(
                 "flex size-9 items-center justify-center rounded-full text-lg tabular-nums hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                 day.isToday &&
@@ -113,7 +157,8 @@ function AgendaView<TEvent>({
                 <AgendaItem
                   color={options.getEventColor?.(item.event.event)}
                   item={item}
-                  label={labelEvent(item.event)}
+                  labelEvent={labelEvent}
+                  onOpenDay={openDay}
                   timeFormat={formats.time}
                 />
               </li>
@@ -127,7 +172,9 @@ function AgendaView<TEvent>({
 
 /**
  * A chronological agenda named `agenda`: the days that have events, four weeks from the anchor's
- * week unless `weeks` says otherwise. Clicking a date opens the `day` view on it.
+ * week unless `weeks` says otherwise. Clicking a date opens the `day` view on it. From the
+ * keyboard the list is one tab stop: Up and Down move between events, Page Up and Page Down
+ * between days, and Shift+Enter opens an event's day.
  */
 export function createAgendaView<TEvent>(defaultOptions: AgendaViewOptions<TEvent> = {}) {
   return defineCalendarView({
@@ -135,6 +182,7 @@ export function createAgendaView<TEvent>(defaultOptions: AgendaViewOptions<TEven
     defaultOptions,
     strategy: {
       getRange: getListRange,
+      getSpatialNavigation: listSpatialNavigation,
       getTitle: getListTitle,
       navigate: navigateList,
       project: (input: CalendarViewProjectionInput<AgendaViewOptions<TEvent>, TEvent>) =>
