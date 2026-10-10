@@ -6,11 +6,13 @@ import {
   useCalendarFocus,
   useCalendarPointer,
   type CalendarFocus,
+  type CalendarResource,
   type CalendarViewRendererProps,
   type ResourceColumnsProjection,
+  type ResourceId,
   type ResourceVisibilityOptions,
 } from "@moltenship/calendar";
-import { useMemo } from "react";
+import { useMemo, type ComponentType } from "react";
 
 import { useEventLabel, type EventDescriber } from "@registry/calendar/event-label";
 import { useViewKeyboard } from "@registry/calendar/view-keyboard";
@@ -23,13 +25,22 @@ import { ResourceColumnsAllDay } from "./resource-columns-all-day";
 import { ResourceColumnsBody } from "./resource-columns-body";
 import { ResourceColumnsDates } from "./resource-columns-dates";
 import { ResourceColumnsHeader } from "./resource-columns-header";
+import type { ResourceHeaderProps } from "./resource-header";
 import { useFocusedColumnInView } from "./focused-column";
 
-export interface ResourceColumnsViewOptions<TEvent> extends ResourceVisibilityOptions {
+export interface ResourceColumnsViewOptions<
+  TEvent,
+  TResource extends CalendarResource<unknown, ResourceId> = CalendarResource<unknown, ResourceId>,
+> extends ResourceVisibilityOptions {
   /** Extra words for each event's accessible name, such as its calendar. */
   readonly describeEvent?: EventDescriber<TEvent>;
   /** Colour for an event; sets `data-color` on every element that renders it. */
   readonly getEventColor?: (event: TEvent) => CalendarEventColor | undefined;
+  /**
+   * Your composition of the `resource-header.tsx` parts, in place of `DefaultResourceHeader`, such
+   * as an avatar before each person's name and an icon before each room's.
+   */
+  readonly ResourceHeader?: ComponentType<ResourceHeaderProps<TResource>>;
 }
 
 const selectResource = (focus: CalendarFocus | null) => focus?.resourceId;
@@ -39,9 +50,12 @@ const snap = { increment: 15, smallestUnit: "minute" } as const;
 /** The narrowest a resource's day gets before the columns scroll sideways, in pixels. */
 const MIN_DAY_WIDTH = 128;
 
-export type ResourceColumnsViewProps<TEvent> = CalendarViewRendererProps<
+export type ResourceColumnsViewProps<
+  TEvent,
+  TResource extends CalendarResource<unknown, ResourceId> = CalendarResource<unknown, ResourceId>,
+> = CalendarViewRendererProps<
   ResourceColumnsProjection<TEvent>,
-  ResourceColumnsViewOptions<TEvent>
+  ResourceColumnsViewOptions<TEvent, TResource>
 >;
 
 /**
@@ -50,14 +64,17 @@ export type ResourceColumnsViewProps<TEvent> = CalendarViewRendererProps<
  * hundreds of resources scroll smoothly. Drag an event to another resource's column to move it
  * there, or within a column as in the day view; changes go to the root's `onEventChange`.
  */
-export function ResourceColumnsView<TEvent>({
+export function ResourceColumnsView<
+  TEvent,
+  TResource extends CalendarResource<unknown, ResourceId> = CalendarResource<unknown, ResourceId>,
+>({
   actions,
   environment,
   events,
   options,
   projection: { columns, resources },
   range,
-}: ResourceColumnsViewProps<TEvent>) {
+}: ResourceColumnsViewProps<TEvent, TResource>) {
   const keys = useMemo(() => resources.map(({ resource }) => resource.key), [resources]);
   const rtl = environment.direction === "rtl";
   const focusedResource = useCalendarFocus(selectResource);
@@ -110,6 +127,8 @@ export function ResourceColumnsView<TEvent>({
           }
           days={columns.length}
           followX={followX}
+          // The projection's resources are untyped; `TResource` is the type the app gave the root.
+          ResourceHeader={options.ResourceHeader as ComponentType<ResourceHeaderProps> | undefined}
         />
         {columns.length > 1 && resources[0] !== undefined && (
           <ResourceColumnsDates
@@ -143,19 +162,20 @@ export function ResourceColumnsView<TEvent>({
 
 /**
  * Resource columns over one day, or `days` days side by side for each resource. Set
- * `unassigned: "bucket"` to show events without resources in an "Unassigned" column.
+ * `unassigned: "bucket"` to show events without resources in an "Unassigned" column. Pass the
+ * root's resource type as `TResource` to read your own fields in `ResourceHeader`.
  */
-export function createResourceColumnsView<TEvent = unknown>(
-  defaultOptions: ResourceColumnsViewOptions<TEvent> = {},
-  days = 1,
-) {
+export function createResourceColumnsView<
+  TEvent = unknown,
+  TResource extends CalendarResource<unknown, ResourceId> = CalendarResource<unknown, ResourceId>,
+>(defaultOptions: ResourceColumnsViewOptions<TEvent, TResource> = {}, days = 1) {
   return defineCalendarView({
     defaultOptions,
     name: "resources",
-    strategy: resourceColumnsStrategy<ResourceColumnsViewOptions<TEvent>, TEvent>({
+    strategy: resourceColumnsStrategy<ResourceColumnsViewOptions<TEvent, TResource>, TEvent>({
       count: days,
       kind: "days",
     }),
-    Renderer: ResourceColumnsView<TEvent>,
+    Renderer: ResourceColumnsView<TEvent, TResource>,
   });
 }

@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 
 import type { CalendarEventChange, CalendarFocus, CalendarResource } from "@moltenship/calendar";
-import { act } from "react";
+import { act, type ComponentType } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 
+import {
+  ResourceHeaderIcon,
+  ResourceHeaderTitle,
+  ResourceHeaderToggle,
+  useResourceHeader,
+  type ResourceHeaderProps,
+} from "../resource-columns-view/resource-header";
 import { drag, layOut } from "./pointer";
 import { click, render } from "./render";
 import {
@@ -32,6 +39,7 @@ interface CalendarOptions {
   /** Controls the calendar's focus when set. */
   readonly focus?: CalendarFocus | null;
   readonly onEventChange?: (change: Change) => void;
+  readonly ResourceHeader?: ComponentType<ResourceHeaderProps>;
   readonly unassigned?: "bucket" | "hide";
 }
 
@@ -43,6 +51,7 @@ function calendar(
     expanded = [],
     focus,
     onEventChange,
+    ResourceHeader,
     unassigned = "hide",
   }: CalendarOptions = {},
 ) {
@@ -59,7 +68,7 @@ function calendar(
       now={Temporal.Instant.from("2026-10-08T16:30Z")}
       onEventChange={onEventChange}
       resources={resources}
-      viewOptions={{ resources: { unassigned } }}
+      viewOptions={{ resources: { ResourceHeader, unassigned } }}
       weekRules={{ firstDay: 1, minimalDays: 4, weekend: [6, 7] }}
     >
       <ResourceCalendar.ActiveView />
@@ -207,6 +216,57 @@ test("groups child resources under a band named for their parent, and collapses 
 
   expect(renderedResources(container)).toEqual(["rooms", "ada"]);
   expect(ariaLabel(headerCells()[1]?.querySelector("button"))).toBe("Expand Rooms");
+});
+
+test("a custom ResourceHeader draws each name row from the parts", async () => {
+  const seen: (string | null)[] = [];
+  function ResourceHeader({ resource, title }: ResourceHeaderProps) {
+    const { groups } = useResourceHeader();
+    seen.push(
+      resource === null ? null : `${resource.id}: ${title}, in ${groups.join(", ") || "-"}`,
+    );
+    return (
+      <>
+        <ResourceHeaderToggle />
+        {resource?.parentId === "rooms" && (
+          <ResourceHeaderIcon>
+            <svg data-room={resource.id} />
+          </ResourceHeaderIcon>
+        )}
+        <ResourceHeaderTitle />
+      </>
+    );
+  }
+  const container = await renderResources(
+    [
+      { data: null, id: "rooms", title: "Rooms" },
+      { data: null, id: "aurora", parentId: "rooms", title: "Aurora" },
+      { data: null, id: "ada", title: "Ada" },
+    ],
+    { expanded: ["rooms"], ResourceHeader, unassigned: "bucket" },
+  );
+  const headerCells = () => [...rows(container)[0]!.querySelectorAll('[role="columnheader"]')];
+  const icons = headerCells()
+    .slice(1)
+    .map((header) => header.querySelector('[data-slot="resource-header-icon"]'));
+
+  // The Unassigned column gets the header too, without a resource.
+  expect(new Set(seen)).toEqual(
+    new Set(["rooms: Rooms, in -", "aurora: Aurora, in Rooms", "ada: Ada, in -", null]),
+  );
+  expect(icons.map((icon) => icon?.querySelector("svg")?.dataset.room ?? null)).toEqual([
+    null,
+    "aurora",
+    null,
+    null,
+  ]);
+  expect(icons[1]?.getAttribute("aria-hidden")).toBe("true");
+  // The view keeps the group names screen readers hear.
+  expect(headerCells().slice(1).map(text)).toEqual(["Rooms", "Aurora, Rooms", "Ada", "Unassigned"]);
+
+  await click(headerCells()[1]!.querySelector("button")!);
+
+  expect(renderedResources(container)).toEqual(["rooms", "ada", ""]);
 });
 
 test("an Unassigned column holds events without resources", async () => {
