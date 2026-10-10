@@ -6,6 +6,7 @@ import {
   showsInResource,
   slotDuration,
   startKeyboardSession,
+  visibleResources,
   type CalendarCellFocus,
   type CalendarEventPlacement,
   type CalendarFocus,
@@ -13,9 +14,11 @@ import {
   type CalendarKeyboardSession,
   type CalendarNavigationCommand,
   type CalendarSpatialNavigation,
+  type ResourceTree,
 } from "@moltenship/calendar-core";
 import { plainDateIntervalContains, type WallTimeSnapOptions } from "@moltenship/calendar-temporal";
 import {
+  useContext,
   useEffect,
   useInsertionEffect,
   useMemo,
@@ -32,6 +35,7 @@ import {
   type CalendarViewRuntime,
 } from "./interaction";
 import type { KeyboardGrab } from "./keyboard-store";
+import { CalendarResourcesContext } from "./resources";
 import { useStateSelector } from "./state-binding";
 import type { CalendarStateSelectorOptions } from "./types";
 
@@ -83,6 +87,7 @@ function createKeyboardHandlers(
   { actions, announcements, keyboard, read }: CalendarInteractionRuntime,
   { getView, roving }: CalendarViewRuntime,
   getOptions: () => CalendarKeyboardOptions,
+  getResources: () => ResourceTree | null,
 ): CalendarKeyboardHandlers {
   const getSnap = () => getOptions().snap ?? DEFAULT_SNAP;
   // Keys reach these handlers only while their view is rendered.
@@ -165,12 +170,21 @@ function createKeyboardHandlers(
     } as CalendarInteractionUpdate);
   }
 
-  /** Follows the grabbed event into the cursor's date and resource, or a create's cell. */
+  /**
+   * Follows the grabbed event into the cursor's date and resource, or a create's cell. A move out
+   * of the event's last copy in a resource, as into the unassigned bucket, follows it to a resource
+   * it still shows in.
+   */
   function focusOfSession(session: CalendarKeyboardSession): CalendarFocus {
-    const { cursor, eventId } = session;
+    const { cursor, eventId, proposed } = session;
     return eventId === null
       ? cursor
-      : { date: cursor.date, eventId, kind: "event", resourceId: cursor.resourceId };
+      : {
+          date: cursor.date,
+          eventId,
+          kind: "event",
+          resourceId: resourceOn(proposed, cursor.resourceId),
+        };
   }
 
   /** A slot create starts `createDuration` long: its cursor steps later, as a drag would. */
@@ -307,15 +321,22 @@ function createKeyboardHandlers(
       : first;
   }
 
-  /** `resourceId` when `placement` shows in it, else its first resource or the unassigned bucket. */
+  /**
+   * The resource focus follows a placement into: `resourceId` when the placement shows there, else
+   * the first resource it books that is visible, so the copy focus moves to renders, even scrolled
+   * out of view, and the unassigned bucket when it books none.
+   */
   function resourceOn(
     placement: CalendarEventPlacement,
     resourceId: CalendarFocus["resourceId"],
   ): CalendarFocus["resourceId"] {
-    if (resourceId === undefined || showsInResource(placement.resourceIds, resourceId)) {
-      return resourceId;
-    }
-    return placement.resourceIds[0] ?? null;
+    const booked = placement.resourceIds;
+    if (resourceId === undefined || showsInResource(booked, resourceId)) return resourceId;
+    if (booked.length === 0) return null;
+    // The latest resources: a save can finish after the root's resources change.
+    const tree = getResources();
+    const visible = tree === null ? [] : visibleResources(tree, read().expandedResourceIds);
+    return booked.find((id) => visible.some((row) => row.id === id));
   }
 
   function onGrabbedKey(current: KeyboardGrab, event: KeyboardEvent<HTMLElement>): boolean {
@@ -409,12 +430,19 @@ export function useCalendarKeyboard(
 ): CalendarKeyboardHandlers {
   const interaction = useInteractionRuntime();
   const view = useViewRuntime();
-  const latest = useRef(options);
+  const resources = useContext(CalendarResourcesContext);
+  const latest = useRef({ options, resources });
   useInsertionEffect(() => {
-    latest.current = options;
+    latest.current = { options, resources };
   });
   const handlers = useMemo(
-    () => createKeyboardHandlers(interaction, view, () => latest.current),
+    () =>
+      createKeyboardHandlers(
+        interaction,
+        view,
+        () => latest.current.options,
+        () => latest.current.resources,
+      ),
     [interaction, view],
   );
   // A view that unmounts mid-gesture leaves nothing grabbed.
