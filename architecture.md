@@ -406,11 +406,17 @@ interface CalendarViewStrategy<TName extends string, TOptions> {
     environment: CalendarEnvironment,
     options: TOptions,
   ): DateRange;
+  /** Dates projected and loaded around the visible range; defaults to it. */
+  getLoadRange?(
+    anchor: Temporal.PlainDate,
+    environment: CalendarEnvironment,
+    options: TOptions,
+  ): DateRange;
   navigate(
     anchor: Temporal.PlainDate,
     direction: -1 | 1,
-    environment: CalendarEnvironment,
     options: TOptions,
+    environment?: CalendarEnvironment,
   ): Temporal.PlainDate;
   getTitle(range: DateRange, environment: CalendarEnvironment, options: TOptions): string;
   project(input: ViewProjectionInput, options: TOptions): ViewProjection;
@@ -441,8 +447,33 @@ This is a semver-protected plugin contract. Custom views do not import internal 
 | List/agenda       | Chronological grouped occurrences/fragments                      | Vertical TanStack Virtual                                       | Keyboard-first equivalent and dense-data fallback                    |
 | Resource columns  | One day with horizontal resource columns and vertical time       | Horizontal resource virtualization                              | Sticky time axis, resource headers, zero-to-many resource projection |
 | Resource timeline | Resource rows with horizontal time                               | Composed row/time virtualizers                                  | Sticky resource axis, configurable range and resolution              |
+| Scrolling week/day | The anchor's week or 1–7 days from it, swiping sideways by pages | Anchored day axis; a page of days rendered either side          | Snaps a page at a time; anchor follows the scroll; load range for prefetching |
+| Scrolling month   | Six week rows from the week of the anchor month's first day       | Anchored week axis; a page of weeks rendered either side        | Snaps a month at a time; named by the anchor's month                 |
 
 Day and week share the time-grid strategy and primitives; they are explicit view variants, not one component controlled by boolean flags.
+
+### 7.2.1 Scrolling views
+
+The scrolling views (#105) are separate view definitions, not a mode of the paged ones. Their
+anchor date is the scroll position: the first visible day of a time grid's page, or a day of the
+month's month.
+A scroll that comes to rest sets `anchorDate`, so title, controlled state and URLs follow it; any
+other anchor change scrolls the view there. Only the latest scroll waits for a controlled anchor:
+an anchor equal to it is the owner catching up, and any other is navigation. Commands that ask
+for the anchor the calendar already has, as Today does after a scroll the owner hasn't taken,
+reach views through `useAnchorDateRequests`. Each strategy's `getLoadRange` adds a page on either
+side of the visible range. `Root` projects the load range, and `onVisibleRangeChange` reports both
+ranges after commit, so applications fetch the next page before it scrolls into view; the calendar
+still never fetches.
+
+The registry renders them on an axis of numbered days or weeks thousands of items long
+(`useScrollingAxis`). The time grid swipes a page at a time through CSS scroll snapping, with snap
+points a whole page apart from the range's start, so a week stays a calendar week and a 3-day view
+moves three days; the month's snap points sit at the week holding each month's first day, four or
+five weeks apart. The view tells the axis where its pages start, and mid-swipe commits and settling
+round to those pages too. Scroll offsets stay out of React state: the view re-renders only when the
+anchor moves, at rest or halfway to another page during a long swipe. Server markup
+places the visible range at the axis start, and the axis extends before it in a layout effect.
 
 ### 7.3 Resource model
 
@@ -600,7 +631,7 @@ defaultView?: ViewName
 onViewChange?: (next: ViewName, detail: StateChangeDetail) => void
 ```
 
-The same pattern applies to anchor date, selection, timezone, focus, and resource expansion. A render-scoped derived reader atom closes over the current controlled inputs and reads primitive atoms only for uncontrolled branches. Controlled inputs are not copied into the store with `useEffect`. Uncontrolled defaults are read exactly once.
+The same pattern applies to anchor date, selection, timezone, focus, and resource expansion. A render-scoped derived reader atom closes over the current controlled inputs and reads primitive atoms only for uncontrolled branches. Controlled inputs are not copied into the store with `useEffect`. Uncontrolled defaults are read exactly once. A command asking for a controlled slice's current value still reaches its handler while the owner holds another change it was told about and hasn't committed, so a deferring owner can drop that change.
 
 Jotai's React bindings own reversible subscription cleanup for unmount and React `Activity` hide/reveal cycles. Permanent logical store destruction is an explicit orchestration action, never an Effect cleanup, because hidden Activities preserve hook state. `selectAtom` owns selector equality and avoids unrelated React commits. The public `getSnapshot` and `getServerSnapshot` methods read the same cached derived atom for orchestration and SSR assertions; explicit defaults and controlled inputs make server and first-client output deterministic.
 
@@ -728,6 +759,8 @@ TanStack Virtual is the maintained virtualization primitive for list and resourc
 - Overscan is velocity-aware within bounded limits.
 - SSR supplies deterministic initial rectangles and ranges where practical.
 - Direct DOM positioning may be enabled for scroll-only position updates, while semantic range changes still enter React.
+- Scrolling views follow the same rule: scroll offsets never enter React; the anchor date, and
+  with it the projected load range, changes at most every half page.
 
 Time-grid event rendering is bounded by the queried visible interval and fragment count. The library never creates a droppable DOM node for every possible slot.
 

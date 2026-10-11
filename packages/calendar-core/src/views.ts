@@ -1,5 +1,6 @@
 import {
   instantInterval,
+  plainDateIntervalContainsInterval,
   type InstantInterval,
   type PlainDateInterval,
 } from "@moltenship/calendar-temporal";
@@ -16,6 +17,12 @@ export interface CalendarViewProjectionInput<TOptions, TEvent = unknown> {
   readonly expandedResourceIds: readonly ResourceId[];
   /** The visible dates resolved to instants in the display time zone. */
   readonly instantRange: InstantInterval;
+  /**
+   * The dates to project: `range`, or more when the strategy's `getLoadRange` keeps dates ready
+   * around it, as a scrolling view keeps its neighbouring pages. `Root` always sets it; read it as
+   * `loadRange ?? range` when calling `project` yourself.
+   */
+  readonly loadRange?: PlainDateInterval;
   readonly options: TOptions;
   /** The visible dates. */
   readonly range: PlainDateInterval;
@@ -28,6 +35,16 @@ export interface CalendarViewProjectionInput<TOptions, TEvent = unknown> {
 
 /** Pure range, navigation, title, and projection rules for one kind of view. */
 export interface CalendarViewStrategy<TProjection, TOptions = undefined, TEvent = unknown> {
+  /**
+   * The dates to project and to have events for: the visible range and the dates the view keeps
+   * ready around it, as a scrolling view keeps a page on each side so a swipe shows events at
+   * once. It must contain `getRange`'s dates. Without it, a view projects only what it shows.
+   */
+  getLoadRange?(
+    anchor: Temporal.PlainDate,
+    environment: CalendarEnvironmentBase,
+    options: TOptions,
+  ): PlainDateInterval;
   getRange(
     anchor: Temporal.PlainDate,
     environment: CalendarEnvironmentBase,
@@ -58,4 +75,23 @@ export function resolveViewInstantRange(
     range.start.toZonedDateTime(timeZone).toInstant(),
     range.end.toZonedDateTime(timeZone).toInstant(),
   );
+}
+
+/**
+ * The dates a strategy projects for `anchor`: its `getLoadRange`, or the visible `range` when it
+ * has none. A load range that leaves out visible dates throws `RangeError`.
+ */
+export function resolveViewLoadRange<TOptions>(
+  strategy: Pick<CalendarViewStrategy<unknown, TOptions>, "getLoadRange">,
+  anchor: Temporal.PlainDate,
+  environment: CalendarEnvironmentBase,
+  options: TOptions,
+  range: PlainDateInterval,
+): PlainDateInterval {
+  const loadRange = strategy.getLoadRange?.(anchor, environment, options);
+  if (loadRange === undefined) return range;
+  if (!plainDateIntervalContainsInterval(loadRange, range)) {
+    throw new RangeError("view-load-range-must-contain-range");
+  }
+  return loadRange;
 }

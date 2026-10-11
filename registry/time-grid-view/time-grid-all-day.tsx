@@ -1,5 +1,6 @@
 import {
   limitDayGridLanes,
+  plainDateIntervalContains,
   showsInResource,
   useCalendarFocus,
   useCalendarInteraction,
@@ -8,6 +9,7 @@ import {
   type DayGridRow,
   type DayGridSegment,
   type EventId,
+  type PlainDateInterval,
   type ResourceId,
   type TimeGridDay,
 } from "@moltenship/calendar";
@@ -45,13 +47,15 @@ const LANE_GAP = 0.125;
 const ROW_PADDING = 0.25;
 
 /**
- * Places an item in a lane of its first day's cell. A span reaches across the following cells:
- * `100%` is one cell without its 1px grid line.
+ * Places an item in a lane of the cell it renders in, its first day's unless it starts `offset`
+ * cells earlier. A span reaches across the following cells: `100%` is one cell without its 1px
+ * grid line.
  */
-function laneStyle(lane: number, span = 1): CSSProperties {
+function laneStyle(lane: number, span = 1, offset = 0): CSSProperties {
   return {
     height: `${LANE}rem`,
-    insetInlineEnd: `calc(${1 - span} * (100% + 1px))`,
+    insetInlineEnd: `calc(${1 - span + offset} * (100% + 1px))`,
+    insetInlineStart: offset === 0 ? undefined : `calc(${-offset} * (100% + 1px))`,
     top: `${ROW_PADDING + lane * (LANE + LANE_GAP)}rem`,
   };
 }
@@ -75,6 +79,7 @@ function AllDayCell({
   count,
   date,
   formatDate,
+  offscreen,
   onOpenDay,
   resourceId,
 }: {
@@ -83,6 +88,11 @@ function AllDayCell({
   readonly count: number;
   readonly date: Temporal.PlainDate;
   readonly formatDate: (date: Temporal.PlainDate) => string;
+  /**
+   * Rendered beside the visible dates of a scrolling grid: hidden from assistive technology and
+   * not a focus target, so the visible dates keep the grid's tab stop.
+   */
+  readonly offscreen: boolean;
   readonly onOpenDay?: (date: Temporal.PlainDate) => void;
   readonly resourceId?: ResourceId | null;
 }) {
@@ -100,8 +110,10 @@ function AllDayCell({
     <div
       role="gridcell"
       aria-colindex={colIndex}
+      aria-hidden={offscreen ? true : undefined}
       aria-label={`${formatDate(date)}, ${eventCount(count)}`}
-      {...roving}
+      // Out of the tab order, yet focusable, so focus on it survives a scroll that moves it away.
+      {...(offscreen ? { tabIndex: -1 } : roving)}
       onKeyDown={(event) => {
         // Shift+Enter opens the day, as clicking its header date does.
         if (
@@ -132,17 +144,35 @@ function AllDayEvent<TEvent>({
   date,
   getEventColor,
   labelEvent,
+  offset,
+  offscreen,
   resourceId,
   segment: { endsAfter, event, lane, span, startsBefore },
+  stickyLabel,
 }: {
-  /** The segment's first date. */
+  /**
+   * The first date it is a focus target on: the date of the cell it renders in, so keys move on
+   * from what is visible.
+   */
   readonly date: Temporal.PlainDate;
   readonly getEventColor?: (event: TEvent) => CalendarEventColor | undefined;
   readonly labelEvent: EventLabeler<TEvent>;
+  /** Cells between the segment's first day and the cell it renders in. */
+  readonly offset: number;
+  /** All of it is beside the visible dates of a scrolling grid: not a focus target. */
+  readonly offscreen: boolean;
   readonly resourceId?: ResourceId | null;
   readonly segment: Segment<TEvent>;
+  /** Keep the title in view past the hour gutter while the bar's start scrolls under it. */
+  readonly stickyLabel: boolean;
 }) {
-  const chip = useEventChip(event, { date, days: span, labelEvent, resourceId });
+  const chip = useEventChip(event, {
+    date,
+    days: span - offset,
+    labelEvent,
+    offscreen,
+    resourceId,
+  });
 
   return (
     <EventChip
@@ -152,10 +182,19 @@ function AllDayEvent<TEvent>({
         "absolute start-0 z-1 mx-1 min-w-0 py-0 leading-[1.375rem]",
         startsBefore && "ms-0 rounded-s-none",
         endsAfter && "me-0 rounded-e-none",
+        // Clipping without a scroll container lets the title stick to the scrolling grid.
+        stickyLabel && "overflow-clip",
       )}
-      style={laneStyle(lane, span)}
+      style={laneStyle(lane, span, offset)}
     >
-      <span className="truncate">{event.title}</span>
+      <span
+        className={cn(
+          "truncate",
+          stickyLabel && "sticky start-[calc(var(--calendar-gutter-width)+0.5rem)]",
+        )}
+      >
+        {event.title}
+      </span>
     </EventChip>
   );
 }
@@ -260,6 +299,16 @@ export interface TimeGridAllDayCellsProps<TEvent> extends TimeGridAllDayProps<TE
   readonly overflow: Overflow<TEvent> | null;
   /** The row's resource, in a view with a row per resource. */
   readonly resourceId?: ResourceId | null;
+  /**
+   * The dates on screen, when the grid renders days around them while it scrolls; the others are
+   * hidden from assistive technology. All of `days` by default.
+   */
+  readonly shown?: PlainDateInterval;
+  /**
+   * Keep bar titles in view past the hour gutter, for a grid that scrolls sideways under a sticky
+   * gutter: a bar that starts in days scrolled away still shows its title.
+   */
+  readonly stickyLabels?: boolean;
 }
 
 /**
@@ -277,8 +326,22 @@ export function TimeGridAllDayCells<TEvent>({
   overflow,
   resourceId,
   row,
+  shown,
+  stickyLabels = false,
 }: TimeGridAllDayCellsProps<TEvent>) {
   const segments = overflow?.segments ?? row.segments;
+  const isShown = (column: number) =>
+    shown === undefined || plainDateIntervalContains(shown, days[column]!.column.date);
+  const firstShown = days.findIndex((_, column) => isShown(column));
+  /**
+   * The cell a segment renders in: its first day's, or the first visible day's for a bar that
+   * starts in days scrolled away, so the bar stays one focus target in the visible cells that
+   * assistive technology reads.
+   */
+  const hostOf = (segment: Segment<TEvent>) =>
+    firstShown > segment.column && segment.column + segment.span > firstShown
+      ? firstShown
+      : segment.column;
 
   return (
     <div
@@ -292,19 +355,23 @@ export function TimeGridAllDayCells<TEvent>({
           count={row.segments.filter((segment) => covers(segment, column)).length}
           date={date}
           formatDate={formatDate}
+          offscreen={!isShown(column)}
           onOpenDay={onOpenDay}
           resourceId={resourceId}
         >
           {segments
-            .filter((segment) => segment.column === column)
+            .filter((segment) => hostOf(segment) === column)
             .map((segment) => (
               <AllDayEvent
                 key={`${typeof segment.event.id}:${segment.event.id}`}
                 date={date}
                 getEventColor={getEventColor}
                 labelEvent={labelEvent}
+                offset={column - segment.column}
+                offscreen={!isShown(column)}
                 resourceId={resourceId}
                 segment={segment}
+                stickyLabel={stickyLabels}
               />
             ))}
           {overflow !== null && overflow.hiddenCounts[column]! > 0 && (

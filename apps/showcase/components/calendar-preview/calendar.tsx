@@ -2,6 +2,7 @@ import {
   createCalendar,
   defineCalendarView,
   defineEventAdapter,
+  scrollingTimeGridStrategy,
   timeGridStrategy,
 } from "@moltenship/calendar";
 import { useState, useSyncExternalStore, type CSSProperties } from "react";
@@ -12,6 +13,12 @@ import { MiniMonth } from "@registry/calendar/mini-month";
 import { ViewSwitcher } from "@registry/calendar/view-switcher";
 import { createAgendaView } from "@registry/list-view/agenda-view";
 import { createMonthView } from "@registry/month-view/month-view";
+import { createScrollingMonthView } from "@registry/scrolling-month-view/scrolling-month-view";
+import {
+  createScrollingDayView,
+  createScrollingWeekView,
+  ScrollingTimeGridView,
+} from "@registry/scrolling-time-grid-view/scrolling-time-grid-view";
 import {
   createDayView,
   createWeekView,
@@ -29,7 +36,15 @@ import {
   type PreviewEventChange,
 } from "./events";
 
-export type PreviewView = "week" | "day" | "month" | "agenda";
+export type PreviewView =
+  | "week"
+  | "day"
+  | "month"
+  | "agenda"
+  | "scrolling-week"
+  | "scrolling-3-day"
+  | "scrolling-day"
+  | "scrolling-month";
 
 export interface LiveCalendarProps {
   /** Add a week of sample annotations: sleep, listening sessions and workouts. */
@@ -60,6 +75,17 @@ const threeDayView = defineCalendarView({
   Renderer: TimeGridView<PreviewEvent>,
 });
 
+// Three days at a time, swiping to the next three.
+const scrollingThreeDayView = defineCalendarView({
+  defaultOptions: { dayView: "scrolling-day", getEventColor },
+  name: "scrolling-3-day",
+  strategy: scrollingTimeGridStrategy<TimeGridViewOptions<PreviewEvent>, PreviewEvent>({
+    count: 3,
+    kind: "days",
+  }),
+  Renderer: ScrollingTimeGridView<PreviewEvent>,
+});
+
 const Calendar = createCalendar<PreviewEvent, never>()({
   eventAdapter: defineEventAdapter<PreviewEvent>()({
     getId: (event) => event.id,
@@ -73,6 +99,10 @@ const Calendar = createCalendar<PreviewEvent, never>()({
     createDayView<PreviewEvent>({ getEventColor }),
     createMonthView<PreviewEvent>({ getEventColor }),
     createAgendaView<PreviewEvent>({ getEventColor }),
+    createScrollingWeekView<PreviewEvent>({ dayView: "scrolling-day", getEventColor }),
+    scrollingThreeDayView,
+    createScrollingDayView<PreviewEvent>({ getEventColor }),
+    createScrollingMonthView<PreviewEvent>({ dayView: "scrolling-day", getEventColor }),
   ],
 });
 
@@ -81,6 +111,10 @@ const viewLabels: Record<PreviewView, string> = {
   day: "Day",
   month: "Month",
   agenda: "Agenda",
+  "scrolling-week": "Week",
+  "scrolling-3-day": "3 days",
+  "scrolling-day": "Day",
+  "scrolling-month": "Month",
 };
 const viewOptions = (["week", "day", "month", "agenda"] as const).map((value) => ({
   label: viewLabels[value],

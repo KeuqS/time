@@ -15,6 +15,7 @@ export {
   createCalendar,
   createCalendarStore,
   defineCalendarView,
+  useAnchorDateRequests,
   useCalendarAnnotations,
   useCalendarAnnouncer,
   useCalendarFocus,
@@ -70,6 +71,7 @@ export type {
   CalendarViewRendererProps,
   CalendarViewSwitcherProps,
   CalendarViewportProps,
+  CalendarVisibleRange,
   CreateCalendarOptions,
   UseNowOptions,
 } from "@moltenship/calendar-react";
