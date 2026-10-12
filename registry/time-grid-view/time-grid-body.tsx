@@ -12,6 +12,7 @@ import type { CalendarEventColor } from "@registry/calendar-theme/event-colors";
 
 import type { TimeGridAnnotationWiring } from "./time-grid-annotations";
 import { TimeGridColumn, useTimeGridColumnFormats } from "./time-grid-column";
+import { TimeGridZoneHours, zoneTimeFormat, type TimeGridZone } from "./time-grid-zones";
 
 export interface TimeGridBodyProps<TEvent> {
   readonly annotations?: TimeGridAnnotationWiring;
@@ -29,27 +30,31 @@ export interface TimeGridBodyProps<TEvent> {
   readonly scrollRef: RefObject<HTMLDivElement | null>;
   /** Length of a keyboard slot, as the keyboard's snap sets it. */
   readonly slotMinutes: number;
+  /** The root's secondary time zones, with an hour column each; see `useTimeGridZones`. */
+  readonly zones?: readonly TimeGridZone[];
 }
+
+const noZones: readonly TimeGridZone[] = [];
 
 /** Hour labels from 1:00 to 23:00; midnight sits under the header. */
 const labelledHours = Array.from({ length: 23 }, (_, index) => index + 1);
 /** Without a current time in view, open the day at 08:00. */
 const DEFAULT_SCROLL_FRACTION = 8 / 24;
 
-/** "1 PM" where the locale uses a 12-hour clock, "13:00" where it uses 24 hours. */
-function hourFormat(locale: Intl.LocalesArgument): Intl.DateTimeFormat {
-  const hours = new Intl.DateTimeFormat(locale, { hour: "numeric" });
-  const { hourCycle } = hours.resolvedOptions();
-  return hourCycle === "h11" || hourCycle === "h12"
-    ? hours
-    : new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" });
-}
-
-/** The gutter's hour labels, from 1:00 to 23:00, over the full height of the element around it. */
-export function TimeGridHours({ locale }: { readonly locale: Intl.LocalesArgument }) {
-  const format = useMemo(() => hourFormat(locale), [locale]);
-
-  return (
+/**
+ * The gutter's hour labels, from 1:00 to 23:00, over the full height of the element around it.
+ * Each secondary zone's hours come first, in a `--calendar-zone-width` column of their own.
+ */
+export function TimeGridHours({
+  locale,
+  zones = noZones,
+}: {
+  readonly locale: Intl.LocalesArgument;
+  readonly zones?: readonly TimeGridZone[];
+}) {
+  // "1 PM" where the locale uses a 12-hour clock, "13:00" where it uses 24 hours.
+  const format = useMemo(() => zoneTimeFormat(locale), [locale]);
+  const hours = (
     <div aria-hidden className="relative h-full">
       {labelledHours.map((hour) => (
         <span
@@ -57,9 +62,19 @@ export function TimeGridHours({ locale }: { readonly locale: Intl.LocalesArgumen
           className="absolute end-2 -translate-y-1/2 text-[0.625rem] whitespace-nowrap text-calendar-axis tabular-nums"
           style={{ top: `${(hour / 24) * 100}%` }}
         >
-          {format.format(new Temporal.PlainTime(hour))}
+          {format(new Temporal.PlainTime(hour))}
         </span>
       ))}
+    </div>
+  );
+  if (zones.length === 0) return hours;
+
+  return (
+    <div className="flex h-full">
+      {zones.map((zone, index) => (
+        <TimeGridZoneHours key={index} locale={locale} zone={zone} />
+      ))}
+      <div className="min-w-0 flex-1">{hours}</div>
     </div>
   );
 }
@@ -118,6 +133,7 @@ export function TimeGridBody<TEvent>({
   renderUnavailable,
   scrollRef,
   slotMinutes,
+  zones,
 }: TimeGridBodyProps<TEvent>) {
   const { locale, timeZone } = environment;
   const now = useNow();
@@ -144,7 +160,7 @@ export function TimeGridBody<TEvent>({
       <div ref={rowRef} role="row" className="flex h-[calc(var(--calendar-hour-height)*24)]">
         <div role="rowheader" className="w-(--calendar-gutter-width) shrink-0">
           <span className="sr-only">Timed events</span>
-          <TimeGridHours locale={locale} />
+          <TimeGridHours locale={locale} zones={zones} />
         </div>
         <div
           className="grid flex-1 bg-[linear-gradient(to_bottom,var(--calendar-grid)_1px,transparent_1px)] bg-size-[100%_var(--calendar-hour-height)]"
@@ -168,6 +184,7 @@ export function TimeGridBody<TEvent>({
               nowTop={nowPosition?.column === index ? nowPosition.top : null}
               formats={formats}
               timeZone={timeZone}
+              zones={zones}
             />
           ))}
         </div>

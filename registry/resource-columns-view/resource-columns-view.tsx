@@ -25,6 +25,14 @@ import type { UnavailableTimeRender } from "@registry/calendar/unavailable-time"
 import { useViewKeyboard } from "@registry/calendar/view-keyboard";
 import type { CalendarEventColor } from "@registry/calendar-theme/event-colors";
 import { offsetLabel } from "@registry/time-grid-view/time-grid-header";
+import {
+  gutterColumn,
+  gutterStyle,
+  TimeGridGutterLabels,
+  timeGridGutterClassName,
+  useTimeGridZones,
+} from "@registry/time-grid-view/time-grid-zones";
+import { cn } from "cn";
 
 import { useAxisSync } from "./axis-sync";
 import { useColumnVirtualizer } from "./column-virtualizer";
@@ -135,6 +143,8 @@ export function ResourceColumnsView<
   const keyboard = useViewKeyboard({ snap });
   const labelEvent = useEventLabel(environment, options.describeEvent);
   const placed = { items, resources, scrollbarWidth, totalSize };
+  const zones = useTimeGridZones(environment, columns);
+  const corner = gutterColumn(columns, zones);
 
   return (
     // Rows: resource headers, dates over several days, all-day events, and the timed columns; each
@@ -146,15 +156,24 @@ export function ResourceColumnsView<
       aria-colcount={1 + resources.length * columns.length}
       {...keyboard}
       data-slot="resource-columns"
-      className="flex h-full min-h-0 flex-col [--calendar-ghost-background:var(--calendar-selection)] [--calendar-gutter-width:3rem] data-interaction:select-none data-[interaction=move]:cursor-grabbing data-[interaction=resize]:cursor-ns-resize sm:[--calendar-gutter-width:4rem]"
+      className={cn(
+        "flex h-full min-h-0 flex-col [--calendar-ghost-background:var(--calendar-selection)] data-interaction:select-none data-[interaction=move]:cursor-grabbing data-[interaction=resize]:cursor-ns-resize",
+        timeGridGutterClassName,
+      )}
+      style={gutterStyle(zones)}
     >
       <div className="shrink-0 border-b border-calendar-grid">
         <ResourceColumnsHeader
           {...placed}
           corner={
-            columns[0] === undefined
-              ? null
-              : offsetLabel(environment.locale, environment.timeZone, columns[0])
+            <TimeGridGutterLabels
+              offset={
+                corner === undefined
+                  ? undefined
+                  : offsetLabel(environment.locale, environment.timeZone, corner)
+              }
+              zones={zones}
+            />
           }
           days={columns.length}
           environment={environment}
@@ -169,6 +188,7 @@ export function ResourceColumnsView<
             days={resources[0].days}
             followX={followX}
             locale={environment.locale}
+            zones={zones}
           />
         )}
         <ResourceColumnsAllDay
@@ -191,6 +211,7 @@ export function ResourceColumnsView<
         renderUnavailable={options.renderUnavailable}
         scrollRef={scrollRef}
         slotMinutes={snap.increment}
+        zones={zones}
       />
     </div>
   );
