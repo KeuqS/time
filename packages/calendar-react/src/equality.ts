@@ -1,6 +1,7 @@
 import type {
   AvailabilityHours,
   CalendarAvailability,
+  CalendarSecondaryTimeZone,
   CalendarWeekRules,
 } from "@moltenship/calendar-core";
 import type { PlainDateInterval } from "@moltenship/calendar-temporal";
@@ -125,4 +126,26 @@ export function sameAvailability(
           sameList(a.hours, b.hours, sameHours),
       ))
   );
+}
+
+const sameZone = (left: unknown, right: unknown): boolean =>
+  Object.is(left, right) ||
+  (isRecord(left) &&
+    isRecord(right) &&
+    (left as Partial<CalendarSecondaryTimeZone>).timeZone ===
+      (right as Partial<CalendarSecondaryTimeZone>).timeZone &&
+    (left as Partial<CalendarSecondaryTimeZone>).label ===
+      (right as Partial<CalendarSecondaryTimeZone>).label);
+
+/**
+ * Compares secondary time zones by value, so an inline list keeps the environment as it is. A
+ * single zone passed where a list belongs, which the root reports, compares by value too.
+ */
+export function sameSecondaryTimeZones(
+  left: readonly (CalendarSecondaryTimeZone | string)[],
+  right: readonly (CalendarSecondaryTimeZone | string)[],
+): boolean {
+  return Array.isArray(left) && Array.isArray(right)
+    ? sameList(left, right, sameZone)
+    : sameZone(left, right);
 }
