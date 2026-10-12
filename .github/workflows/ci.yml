@@ -64,3 +64,34 @@ jobs:
       - name: Name the step that failed
         if: failure()
         run: vp run --last-details
+
+  browsers:
+    name: Firefox and WebKit
+    # The full gate's Firefox and WebKit run, on Linux, where Playwright's Firefox starts (#182).
+    # On demand only, while its timing tests vary from run to run there (#192):
+    # `gh workflow run ci.yml --ref <branch>`. Pull requests and main run the PR tier.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Vite+
+        uses: voidzero-dev/setup-vp@v1.21.1
+        with:
+          node-version: "26"
+          cache: true
+
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Install Firefox and WebKit
+        run: vp exec --filter a11y playwright install --with-deps firefox webkit
+
+      - name: The a11y suite and interactions in Firefox and WebKit
+        run: vp run browsers
+
+      - name: Name the step that failed
+        if: failure()
+        run: vp run --last-details

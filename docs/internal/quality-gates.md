@@ -13,10 +13,10 @@ Three tasks group the gates below. `AGENTS.md` says which one a change runs.
 | ----- | -------------------- | -------------------------------------------------------------------------------------------- |
 | Quick | `vp run ready:quick` | `showcase:links`, `vp check`, `vp test`                                                      |
 | PR    | `vp run ready`       | `ready:checks` (`registry:smoke` beside the `gate:serial` lane) and `a11y`                   |
-| Full  | `vp run ready:full`  | Every PR step, `a11y:ci-speed`, then `showcase:types`, search and `registry:e2e` in `gate:serial:full` |
+| Full  | `vp run ready:full`  | Every PR step, `a11y:ci-speed`, `browsers`, then `showcase:types`, search and `registry:e2e` in `gate:serial:full` |
 
 On a 15-core Apple-silicon laptop, quick takes about 13 seconds, PR 37 seconds from a cold cache
-and 24 warm, and full 102 seconds cold and 97 warm. The warm floor is the steps that pack packages,
+and 24 warm, and full 112 seconds cold and 103 warm. The warm floor is the steps that pack packages,
 build the docs site or install the registry into clean apps, which never replay: they rewrite their
 own inputs, or reach the network.
 
@@ -25,7 +25,8 @@ and `package:graph` in that order, because each writes or reads generated files:
 packed tarballs, the docs site's `.next` and `.source`. Steps outside it read only source, so they
 run at the same time; `a11y` and `a11y:ci-speed` keep their Vite dependency caches apart. CI's
 `quality-gates` job runs `vp run ready:checks` and its `accessibility` job runs `vp run a11y`:
-together, `vp run ready`. When a job fails, its last step names the failed task. The contract test
+together, `vp run ready`. On demand (`gh workflow run ci.yml --ref <branch>`), a `browsers` job runs
+`vp run browsers` on Linux. When a job fails, its last step names the failed task. The contract test
 `tests/quality-gates.test.ts` holds the workflow to those task names and fails if `ready:full`
 misses a step of `ready`.
 
@@ -56,6 +57,24 @@ covers it:
   `node --import tsx tools/registry/src/e2e.ts`.
 - **Time zone and locale.** CI runs in UTC; laptops run in their own zone. Tests pass explicit
   `timeZone`, `locale` and `now`, so passing in both is also a check that nothing reads the host's.
+
+## Browsers
+
+`vp run browsers` runs the a11y suite and `tools/a11y/tests/interactions.a11y.tsx` (real mouse and
+keyboard moves and resizes) in Firefox and WebKit (`--mode browsers`); `vp run a11y` runs both in
+Chromium. Chromium, Firefox and Playwright's WebKit all have Temporal, but Safari versions without it
+are still in use, so WebKit runs on `temporal-polyfill`: `tools/a11y/tests/setup.ts` removes the native Temporal and
+installs the polyfill before any test imports, as an app would, and a test checks it did.
+
+- Reduced motion stays in its own Chromium context.
+- Base UI's focus guards are unnamed buttons in WebKit, on purpose, for VoiceOver; `axe.ts` exempts
+  them as it already does for `aria-hidden-focus`.
+- Some tests skip in WebKit: focus kept in view in the scrolling agenda (#185, a 1.0 blocker), and
+  until #181 the agenda's end, the 10,000-event agenda scroll (too slow on the polyfill in CI), a
+  day swipe's and a month step's snap points, and a drag against the edge.
+- Playwright's Firefox doesn't start on macOS 27 (#182). There the run leaves it out and says so;
+  CI's `browsers` job runs it on Linux, on demand, where its timing tests still vary from run to
+  run (#192).
 
 ## Passing gates
 

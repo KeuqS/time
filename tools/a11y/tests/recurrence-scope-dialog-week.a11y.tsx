@@ -19,7 +19,7 @@ import { useRecurrenceScopePrompt } from "@registry/recurrence-scope-dialog/use-
 import { createWeekView } from "@registry/time-grid-view/time-grid-view";
 
 import { seriousViolations, setTheme, themes } from "./axe";
-import { render } from "./render";
+import { inWebKit, render } from "./render";
 
 type Standup = RecurringCalendarEvent<null, string>;
 type Occurrence = RecurrenceOccurrence<Standup, string>;
@@ -152,7 +152,11 @@ async function moveFromKeyboard(eventId: string, keys: string) {
   await userEvent.keyboard(" ");
   await userEvent.keyboard(keys);
   await userEvent.keyboard("{Enter}");
-  await vi.waitFor(() => expect(dialog()?.contains(document.activeElement)).toBe(true));
+  // Focus can take over a second to move into the question in WebKit on temporal-polyfill on a
+  // CI runner.
+  await vi.waitFor(() => expect(dialog()?.contains(document.activeElement)).toBe(true), {
+    timeout: inWebKit ? 3000 : 1000,
+  });
 }
 
 /** Tabs to a choice in the dialog and presses Enter on it. */
