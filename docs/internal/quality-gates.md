@@ -13,22 +13,29 @@ Three tasks group the gates below. `AGENTS.md` says which one a change runs.
 | ----- | -------------------- | -------------------------------------------------------------------------------------------- |
 | Quick | `vp run ready:quick` | `showcase:links`, `vp check`, `vp test`                                                      |
 | PR    | `vp run ready`       | `ready:checks` (`registry:smoke` beside the `gate:serial` lane) and `a11y`                   |
-| Full  | `vp run ready:full`  | Every PR step, `a11y:ci-speed`, `browsers`, then `showcase:types`, search and `registry:e2e` in `gate:serial:full` |
+| Full  | `vp run ready:full`  | Every PR step, `a11y:ci-speed`, `browsers`, then `release:dry-run`, `showcase:types`, search and `registry:e2e` in `gate:serial:full` |
 
 On a 15-core Apple-silicon laptop, quick takes about 13 seconds, PR 37 seconds from a cold cache
-and 24 warm, and full 112 seconds cold and 103 warm. The warm floor is the steps that pack packages,
-build the docs site or install the registry into clean apps, which never replay: they rewrite their
-own inputs, or reach the network.
+and 24 warm, and full 112 seconds cold and 103 warm, plus about 6 seconds for the release dry run.
+The warm floor is the steps that pack packages, build the docs site or install the registry into
+clean apps, which never replay: they rewrite their own inputs, or reach the network.
 
-`gate:serial` runs `showcase:links`, `ci:check`, `ci:build`, `ci:test`, `react:gate`, `ssr:smoke`
-and `package:graph` in that order, because each writes or reads generated files: packages' `dist`,
-packed tarballs, the docs site's `.next` and `.source`. Steps outside it read only source, so they
-run at the same time; `a11y` and `a11y:ci-speed` keep their Vite dependency caches apart. CI's
-`quality-gates` job runs `vp run ready:checks` and its `accessibility` job runs `vp run a11y`:
+`gate:serial` runs `showcase:links`, `ci:check`, `ci:build`, `release:check`, `ci:test`,
+`react:gate`, `ssr:smoke` and `package:graph` in that order, because each writes or reads generated
+files: packages' `dist`, packed tarballs, the docs site's `.next` and `.source`. Steps outside it
+read only source, so they run at the same time; `a11y` and `a11y:ci-speed` keep their Vite
+dependency caches apart. CI's `quality-gates` job runs `vp run ready:checks` and its `accessibility` job runs `vp run a11y`:
 together, `vp run ready`. On demand (`gh workflow run ci.yml --ref <branch>`), a `browsers` job runs
 `vp run browsers` on Linux. When a job fails, its last step names the failed task. The contract test
 `tests/quality-gates.test.ts` holds the workflow to those task names and fails if `ready:full`
 misses a step of `ready`.
+
+The release workflow runs `vp run a11y` on its own and then `vp run release:gate`: `ready:full`
+without the browser runs (a GitHub runner is what `a11y:ci-speed` simulates, and `browsers` runs on
+demand in CI), with a strict dry run and the shadcn install test against the dry run's tarballs.
+A check that joins only the full gate joins `release:gate` too: its lane, `gate:serial:release`,
+for a serial step, or its `dependsOn` for a parallel one. The contract test lists what
+`release:gate` may leave out. See [releasing.md](./releasing.md).
 
 ## CI and local runs
 
@@ -52,9 +59,9 @@ covers it:
   app without the types Next.js generates (`next-env.d.ts`, `.next/types`); a laptop has whatever
   its last Next.js run left. So the docs app's own code mustn't rely on them, such as the global
   `PageProps<…>`.
-- **Environment.** Vite Task runs steps with a small set of environment variables. Behind a proxy,
-  or to use `registry:e2e`'s `REGISTRY_E2E_*` switches, run it directly:
-  `node --import tsx tools/registry/src/e2e.ts`.
+- **Environment.** Vite Task runs cached steps with a small set of environment variables. Steps
+  with `cache: false`, such as `registry:e2e` and the uncached release tasks, get the whole
+  environment, so `REGISTRY_E2E_*` switches and proxy settings reach them through `vp run`.
 - **Time zone and locale.** CI runs in UTC; laptops run in their own zone. Tests pass explicit
   `timeZone`, `locale` and `now`, so passing in both is also a check that nothing reads the host's.
 
@@ -85,6 +92,7 @@ vp install
 vp run showcase:links
 vp run ci:check
 vp run ci:build
+vp run release:check
 vp run ci:test
 vp run react:gate
 vp run ssr:smoke
@@ -95,28 +103,28 @@ vp run a11y
 
 `vp run ready` runs the same gates, in parallel where they don't share generated files. The SSR report includes its deterministic environment, server-markup hash, recoverable hydration errors, interaction result, and unmount result. The registry report validates any `registry-item.json` files under `registry/` plus a committed contract fixture so an empty source registry cannot make the schema smoke vacuous, then builds the registry and checks the output (see [Registry](#registry)).
 
-`vp run calendar-temporal#build` also enforces the package's production ESM budget: at most 30 KiB
-raw and 7 KiB gzip. Because the check reads the emitted artifact, the recursive CI build exercises
-the same gate that runs before publication.
+Every published entry point has a size budget for its emitted ESM, raw and gzip. The budgets live in
+one file, [`tools/release/src/config.ts`](../../tools/release/src/config.ts), and
+`vp run release:size` checks them after a build. [releasing.md](./releasing.md) describes it and
+the other release checks: API reports, export checks, a clean-consumer install and the dry run.
 
-`vp run calendar-core#build` applies the same emitted-artifact check to the core surface: at
-most 180 KiB raw and 46 KiB gzip. `vp run engine:gate` is the reproducible phase-1 audit. It runs the
+`vp run engine:gate` is the reproducible phase-1 audit. It runs the
 repository check, the interval/DST/index/revision/cache/invalid-data matrices, dependency and packed
-API checks, both production engine builds and size budgets, and the uncached protocol-v2 core
+API checks, both production engine builds and their size budgets, and the uncached protocol-v2 core
 benchmark. The benchmark is a reference-hardware gate rather than a portable CI timing claim, so it
 remains an explicit local task while its deterministic correctness and build checks also run in CI.
 
 `vp run react:store` is the focused issue #25 gate. It checks and builds `calendar-react`, runs the
 controlled/uncontrolled state matrix, two-root isolation, selector invalidation, injected-store and
 cleanup checks, and verifies deterministic SSR/hydration. The production build check
-(`packages/calendar-react/scripts/verify-public-api.mjs`) fails if the React client boundary is dropped or the runtime
-outgrows its budget.
+(`packages/calendar-react/scripts/verify-public-api.mjs`) fails if the React client boundary is
+dropped, and `vp run release#size calendar-react` if the runtime outgrows its budget.
 
 `vp run react:factory` is the focused issue #26 gate. It adds the typed factory, compound controls,
 custom-view registry, diagnostics/capabilities, facade consumer, direct React 19 refs, deterministic
 IDs, and public declaration checks. The facade test imports only supported package roots and fails
-if its third-party view needs a cast or a private source path. The React package build also enforces
-its 76 KiB raw / 20 KiB gzip production ESM budget.
+if its third-party view needs a cast or a private source path. The React package build also checks
+that the bundle keeps its `"use client"` directive.
 
 `vp run react:gate` is the phase-2 regression gate from issue #27. It runs the repository check, the
 complete React/facade package tests and production builds, the focused render/hydrate harness, the

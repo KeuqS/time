@@ -35,6 +35,7 @@ const tasks = (config.run?.tasks ?? {}) as Record<string, Task>;
 const prGates = [
   "ci:check",
   "ci:build",
+  "release:check",
   "ci:test",
   "react:gate",
   "ssr:smoke",
@@ -150,7 +151,37 @@ describe("CI quality gate contract", () => {
         "showcase:types",
         "showcase#search:check",
         "registry:e2e",
+        "release:dry-run",
       ]),
+    );
+  });
+
+  test("the release checks run right after the build, in the lane CI runs", () => {
+    const lane = commandsOf(tasks["gate:serial"]!)[0]!
+      .split("&&")
+      .map((step) => step.trim());
+
+    expect(lane[lane.indexOf("vp run ci:build") + 1]).toBe("vp run release:check");
+    expect(stepsOf("ready:checks").has("release:check")).toBe(true);
+  });
+
+  test("the release workflow's gate is the full gate without the browser runs", () => {
+    const release = new Set(work("release:gate"));
+    // The workflow runs a11y in a step of its own; CI runs browsers on demand; the shadcn install
+    // test runs on the dry run's tarballs instead; and release:gate has its own lane.
+    const dropped = ["a11y", "a11y:ci-speed", "browsers", "registry:e2e"].flatMap((name) => [
+      name,
+      ...work(name),
+    ]);
+
+    expect(
+      work("ready:full")
+        .filter((step) => !release.has(step))
+        .sort(),
+    ).toEqual([...dropped, "gate:serial:full"].sort());
+    expect(release.has("release:registry-e2e")).toBe(true);
+    expect(commandsOf(tasks["gate:serial:release"]!)[0]).toContain(
+      "vp run release:dry-run --require-clean",
     );
   });
 
@@ -164,7 +195,7 @@ describe("CI quality gate contract", () => {
   });
 
   test("groups only gather steps, so the comparison sees every one", () => {
-    for (const name of ["ready", "ready:checks", "ready:full"]) {
+    for (const name of ["ready", "ready:checks", "ready:full", "release:gate"]) {
       expect(isGroup(tasks[name]!)).toBe(true);
     }
   });
