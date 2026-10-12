@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, test } from "vite-plus/test";
 import { parse } from "yaml";
 
+import config from "../vite.config";
+
 interface WorkflowStep {
   readonly name?: string;
   readonly run?: string;
@@ -19,22 +21,59 @@ interface Workflow {
   readonly permissions?: Record<string, string>;
 }
 
-const expectedGateCommands = [
-  "vp install --frozen-lockfile",
-  "vp run ci:check",
-  "vp run ci:build",
-  "vp run ci:test",
-  "vp run react:gate",
-  "vp run ssr:smoke",
-  "vp run registry:smoke",
-  "vp run package:graph",
+type Task =
+  | string
+  | readonly string[]
+  | {
+      readonly command: string | readonly string[];
+      readonly dependsOn?: readonly string[];
+    };
+
+const tasks = (config.run?.tasks ?? {}) as Record<string, Task>;
+
+/** The named gates every PR runs, before the tiers grew around them. */
+const prGates = [
+  "ci:check",
+  "ci:build",
+  "ci:test",
+  "react:gate",
+  "ssr:smoke",
+  "registry:smoke",
+  "package:graph",
+  "a11y",
 ] as const;
 
-const accessibilityCommands = [
-  "vp install --frozen-lockfile",
-  "vp exec --filter a11y playwright install --with-deps --only-shell chromium",
-  "vp run a11y",
-] as const;
+const commandsOf = (task: Task): readonly string[] =>
+  typeof task === "string" ? [task] : "command" in task ? [task.command].flat() : task;
+const dependenciesOf = (task: Task): readonly string[] =>
+  typeof task === "object" && "dependsOn" in task ? (task.dependsOn ?? []) : [];
+
+/** A tier or a group of steps: it only depends on its steps, and says so when they pass. */
+const isGroup = (task: Task) =>
+  dependenciesOf(task).length > 0 &&
+  commandsOf(task).every((command) => command.startsWith("echo "));
+
+/**
+ * Every step a task runs, all the way down: the tasks it depends on, the tasks and package tasks
+ * (`pkg#task`) its commands run with `vp run`, and the commands themselves.
+ */
+function stepsOf(name: string): Set<string> {
+  const task = tasks[name];
+  if (task === undefined) throw new Error(`no root task named ${name}`);
+  const direct = [
+    ...dependenciesOf(task),
+    ...commandsOf(task)
+      .flatMap((command) => command.split("&&"))
+      .map((command) => command.trim())
+      .filter((command) => !isGroup(task) || !command.startsWith("echo "))
+      .map((command) => /^vp run(?: -\S+)* ([\w:#@./-]+)/u.exec(command)?.[1] ?? command),
+  ];
+  return new Set(direct.flatMap((step) => (step in tasks ? [step, ...stepsOf(step)] : [step])));
+}
+
+/** The steps that do work, without the groups around them. */
+const work = (name: string) =>
+  [...stepsOf(name)].filter((step) => !(step in tasks) || !isGroup(tasks[step]!));
 
 async function readWorkflow(): Promise<Workflow> {
   return parse(await readFile(".github/workflows/ci.yml", "utf8")) as Workflow;
@@ -53,7 +92,12 @@ describe("CI quality gate contract", () => {
       "node-version": "26",
       cache: true,
     });
-    expect(steps.map(({ run }) => run).filter(Boolean)).toEqual(expectedGateCommands);
+    expect(steps.map(({ run }) => run).filter(Boolean)).toEqual([
+      "vp install --frozen-lockfile",
+      "vp run ready:checks",
+      "vp run --last-details",
+    ]);
+    expect(Object.keys(workflow.jobs ?? {})).toEqual(["quality-gates", "accessibility"]);
     expect(workflow.permissions).toEqual({ contents: "read" });
     expect(workflow.concurrency).toMatchObject({
       group: "${{ github.workflow }}-${{ github.ref }}",
@@ -64,16 +108,45 @@ describe("CI quality gate contract", () => {
   test("a separate job runs the axe checks in Chromium", async () => {
     const steps = (await readWorkflow()).jobs?.accessibility?.steps ?? [];
 
-    expect(steps.map(({ run }) => run).filter(Boolean)).toEqual(accessibilityCommands);
+    expect(steps.map(({ run }) => run).filter(Boolean)).toEqual([
+      "vp install --frozen-lockfile",
+      "vp exec --filter a11y playwright install --with-deps --only-shell chromium",
+      "vp run a11y",
+      "vp run --last-details",
+    ]);
   });
 
-  test("the default ready command delegates to every named gate", async () => {
-    const manifest = JSON.parse(await readFile("package.json", "utf8")) as {
-      readonly scripts: Record<string, string>;
-    };
+  test("CI's two jobs are `vp run ready`, which runs every named gate", () => {
+    expect(tasks["ready"]).toMatchObject({ dependsOn: ["ready:checks", "a11y"] });
+    expect([...stepsOf("ready")]).toEqual(expect.arrayContaining([...prGates]));
+  });
 
-    for (const command of [...expectedGateCommands.slice(1), "vp run a11y"]) {
-      expect(manifest.scripts.ready).toContain(command);
+  test("the full gate runs every step the PR tier runs", () => {
+    const full = new Set(work("ready:full"));
+
+    expect(work("ready").filter((step) => !full.has(step))).toEqual([]);
+    expect([...full]).toEqual(
+      expect.arrayContaining([
+        "a11y:ci-speed",
+        "showcase:types",
+        "showcase#search:check",
+        "registry:e2e",
+      ]),
+    );
+  });
+
+  test("the PR tier runs every step the quick tier runs", () => {
+    const pr = new Set(work("ready"));
+    const quick = commandsOf(tasks["ready:quick"]!).map(
+      (command) => /^vp run ([\w:#@./-]+)$/u.exec(command)?.[1] ?? command,
+    );
+
+    expect(quick.filter((step) => !pr.has(step))).toEqual([]);
+  });
+
+  test("groups only gather steps, so the comparison sees every one", () => {
+    for (const name of ["ready", "ready:checks", "ready:full"]) {
+      expect(isGroup(tasks[name]!)).toBe(true);
     }
   });
 });

@@ -23,6 +23,35 @@ export default defineConfig({
   run: {
     cache: true,
     tasks: {
+      // The quality gate's three tiers; AGENTS.md says which one a change runs. Steps that write
+      // or read generated files (`dist`, `.next`, `.source`) run one after another in a
+      // `gate:serial` lane. The rest run beside it.
+      // The link check compiles every docs page, so MDX that wouldn't build fails here too.
+      "ready:quick": ["vp run showcase:links", "vp check", "vp test"],
+      // What every PR runs. CI runs `ready:checks` and `a11y` as two jobs.
+      ready: {
+        command: "echo ready: every PR check passed",
+        cache: false,
+        dependsOn: ["ready:checks", "a11y"],
+      },
+      "ready:checks": {
+        command: "echo ready:checks passed",
+        cache: false,
+        dependsOn: ["registry:smoke", "gate:serial"],
+      },
+      // The release gate: everything `ready` runs, the a11y suite at CI's speed, the docs site's
+      // types and search, and the registry installed into clean apps.
+      "ready:full": {
+        command: "echo ready:full: the release gate passed",
+        cache: false,
+        dependsOn: ["registry:smoke", "a11y", "a11y:ci-speed", "gate:serial:full"],
+      },
+      "gate:serial":
+        "vp run showcase:links && vp run ci:check && vp run ci:build && vp run ci:test && vp run react:gate && vp run ssr:smoke && vp run package:graph",
+      // `ci:build` has built the docs site, so search checks that build. The registry's install
+      // test packs the packages and installs them into clean apps; it needs the network.
+      "gate:serial:full":
+        "vp run gate:serial && vp run showcase:types && vp run showcase#search:check && vp run registry:e2e",
       "ci:check": "vp check",
       "ci:test": "vp test",
       "ci:build": "vp run -r build",
@@ -31,6 +60,9 @@ export default defineConfig({
       "registry:build": "vp run registry#site",
       "registry:e2e": "vp run registry#e2e",
       a11y: "vp run a11y#test",
+      // The a11y suite with Chromium slowed down to a CI runner's speed. Never replayed: it's what
+      // to run when CI and local disagree, and a timing race can pass once by luck.
+      "a11y:ci-speed": { command: "vp test --mode ci-speed", cwd: "tools/a11y", cache: false },
       "package:graph": ["vp run check:boundaries", "vp test tests/quality-gates.test.ts"],
       "showcase:source": "vp run showcase#source:generate",
       "showcase:types": "vp run showcase#types:check",
