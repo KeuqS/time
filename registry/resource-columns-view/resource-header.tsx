@@ -8,6 +8,7 @@ import {
 import { ChevronRightIcon } from "lucide-react";
 import { createContext, use, type ComponentProps } from "react";
 
+import { ResourceStatusBadge, useResourceStatusSummary } from "@registry/calendar/resource-status";
 import { ResourceTime } from "@registry/calendar/resource-time";
 import { cn } from "cn";
 
@@ -26,6 +27,8 @@ export interface ResourceHeaderContextValue {
   readonly environment: Pick<CalendarEnvironmentBase, "locale" | "timeZone">;
   /** Names of the groups the resource sits in, outermost first. */
   readonly groups: readonly string[];
+  /** Whether the default header shows the resource's status; see the view's `resourceStatus`. */
+  readonly status: boolean;
   readonly title: string;
   readonly visible: VisibleResource;
 }
@@ -113,6 +116,8 @@ export function ResourceHeaderTime({ className, ...props }: ComponentProps<"span
   const { environment, visible } = useResourceHeader();
   return (
     <ResourceTime
+      // The header's name runs on from the resource's: "Leo, local time 5:30 PM".
+      separator
       className={cn("truncate leading-none", className)}
       environment={environment}
       timeZone={visible.resource?.timeZone}
@@ -122,16 +127,48 @@ export function ResourceHeaderTime({ className, ...props }: ComponentProps<"span
 }
 
 /**
+ * The resource's status now, such as "Busy until 3:00 PM", as a badge, with the view's
+ * `resourceStatus`, which makes room for it. Nothing without it, for a group or the Unassigned
+ * column, or while server rendering.
+ */
+export function ResourceHeaderStatus({ className, ...props }: ComponentProps<"span">) {
+  const { environment, status, visible } = useResourceHeader();
+  // A group's own bookings aren't its members', so a group shows no status of its own.
+  const summary = useResourceStatusSummary(
+    environment,
+    status && !visible.hasChildren ? visible.id : null,
+  );
+  if (summary === null) return null;
+  return (
+    <>
+      {/* Read after the name and local time, which the header's name runs on from. */}
+      <span className="sr-only">, </span>
+      <ResourceStatusBadge className={className} summary={summary} {...props} />
+    </>
+  );
+}
+
+/**
  * The default composition: a group's chevron, then the name, with the local time under it for a
- * resource in another time zone.
+ * resource in another time zone and, with the view's `resourceStatus`, its status after that.
  */
 export function DefaultResourceHeader() {
+  const { status } = useResourceHeader();
   return (
     <>
       <ResourceHeaderToggle />
       <span className="flex min-w-0 flex-col">
         <ResourceHeaderTitle />
-        <ResourceHeaderTime />
+        {status ? (
+          <span className="flex min-w-0 items-center gap-1">
+            {/* The badge keeps its words and the local time gives way after it, out of sight in
+                a narrow column; the name still reads the time first. */}
+            <ResourceHeaderTime className="order-last min-w-0 shrink @max-[11rem]:sr-only" />
+            <ResourceHeaderStatus />
+          </span>
+        ) : (
+          <ResourceHeaderTime />
+        )}
       </span>
     </>
   );

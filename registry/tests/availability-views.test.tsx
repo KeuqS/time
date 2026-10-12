@@ -69,12 +69,15 @@ async function renderView(
     defaultFocus = null,
     events = [],
     onEventChange,
-    renderUnavailable,
+    now = Temporal.Instant.from("2026-10-08T16:30:00Z"),
+    options,
   }: {
     readonly defaultFocus?: CalendarFocus | null;
     readonly events?: readonly Shift[];
     readonly onEventChange?: (change: CalendarEventChange<Shift, string, string>) => void;
-    readonly renderUnavailable?: UnavailableTimeRender;
+    readonly now?: Temporal.Instant;
+    /** Options for every view. */
+    readonly options?: object;
   } = {},
 ) {
   const result = await render(
@@ -86,13 +89,13 @@ async function renderView(
       defaultView={view}
       events={events}
       locale="en-US"
-      now={Temporal.Instant.from("2026-10-08T16:30:00Z")}
+      now={now}
       onEventChange={onEventChange}
       resources={team}
       viewOptions={
-        renderUnavailable === undefined
+        options === undefined
           ? undefined
-          : Object.fromEntries(Calendar.views.map(({ name }) => [name, { renderUnavailable }]))
+          : Object.fromEntries(Calendar.views.map(({ name }) => [name, options]))
       }
       weekRules={{ firstDay: 1, minimalDays: 4, weekend: [6, 7] }}
     >
@@ -158,7 +161,7 @@ test("resource columns shade each resource's hours on its own clock and show its
 
   const headerTimes = [...container.querySelectorAll('[data-slot="resource-time"]')].map(text);
   // 16:30 UTC is 5:30 PM in London; New York's own clock needs no local time.
-  expect(headerTimes).toEqual(["local time 5:30 PM GMT+1"]);
+  expect(headerTimes).toEqual([", local time 5:30 PM GMT+1"]);
 });
 
 test("moving an event to a resource in another time zone keeps its instant", async () => {
@@ -317,7 +320,7 @@ test("a view's renderUnavailable replaces the shading, per resource", async () =
       data-why={band.reason}
     />
   );
-  const container = await renderView("resources", { renderUnavailable });
+  const container = await renderView("resources", { options: { renderUnavailable } });
   const tints = (id: string) =>
     [
       ...container.querySelectorAll<HTMLElement>(
@@ -331,4 +334,80 @@ test("a view's renderUnavailable replaces the shading, per resource", async () =
     "abroad outside-hours 2026-10-08",
     "abroad exception 2026-10-08",
   ]);
+});
+
+const lunch: Shift = {
+  data: null,
+  end: Temporal.Instant.from("2026-10-08T17:30:00Z"),
+  id: "lunch",
+  kind: "timed",
+  resourceIds: ["ny"],
+  start: Temporal.Instant.from("2026-10-08T16:00:00Z"),
+  title: "Lunch",
+};
+
+test("resource headers show each resource's status in words with resourceStatus", async () => {
+  // 16:30 UTC is 12:30 PM in New York, 5:30 PM in London.
+  const plain = await renderView("resources", { events: [lunch] });
+  expect(plain.querySelector('[data-slot="resource-status"]')).toBeNull();
+  await cleanup?.();
+
+  const container = await renderView("resources", {
+    events: [lunch],
+    options: { resourceStatus: true },
+  });
+  const badges = [...container.querySelectorAll<HTMLElement>('[data-slot="resource-status"]')];
+  expect(badges.map((badge) => [badge.dataset.state, text(badge)])).toEqual([
+    ["busy", "Busy until 1:30 PM"],
+    // London's Friday is the offsite and then the weekend: it opens Monday, 4 AM here.
+    ["outside-hours", "Outside hours until Mon 4:00 AM"],
+    ["outside-hours", "Outside hours until 10:00 PM"],
+  ]);
+  // The header's name says it, after the name and local time.
+  expect(text(badges[1]!.closest('[role="columnheader"]')!)).toBe(
+    "Leo, local time 5:30 PM GMT+1, Outside hours until Mon 4:00 AM",
+  );
+});
+
+test("timeline row headers name each resource's status with resourceStatus", async () => {
+  vi.stubGlobal("ResizeObserver", StubResizeObserver);
+  const container = await renderView("timeline-day", {
+    events: [lunch],
+    options: { resourceStatus: true },
+  });
+  const header = (id: string) =>
+    container.querySelector(`[role="row"][data-resource-id="${id}"] [role="rowheader"]`)!;
+
+  expect(ariaLabel(header("ny"))).toBe("Nia, Busy until 1:30 PM");
+  expect(ariaLabel(header("london"))).toBe(
+    "Leo, local time 5:30 PM GMT+1, Outside hours until Mon 4:00 AM",
+  );
+  expect(text(header("ny").querySelector('[data-slot="resource-status"]')!)).toBe(
+    "Busy until 1:30 PM",
+  );
+});
+
+test("badges say free until the next event or closing, and closed days with their label", async () => {
+  // 13:00 UTC on Thursday is 9:00 AM in New York: Nia is free until lunch, at noon.
+  const container = await renderView("resources", {
+    events: [lunch],
+    now: Temporal.Instant.from("2026-10-08T13:00:00Z"),
+    options: { resourceStatus: true },
+  });
+  const words = () =>
+    [...container.querySelectorAll<HTMLElement>('[data-slot="resource-status"]')].map((badge) => [
+      badge.dataset.state,
+      text(badge),
+    ]);
+  expect(words()[0]).toEqual(["free", "Free until 12:00 PM"]);
+  await cleanup?.();
+
+  // Friday is the offsite, so New York is closed all day.
+  const friday = await renderView("resources", {
+    now: Temporal.Instant.from("2026-10-09T15:00:00Z"),
+    options: { resourceStatus: true },
+  });
+  expect(text(friday.querySelector('[data-slot="resource-status"]')!)).toBe(
+    "Closed today, Offsite",
+  );
 });
