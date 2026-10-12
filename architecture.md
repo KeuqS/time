@@ -671,36 +671,36 @@ interface CalendarContextValue<TEvent, TResource> {
 
 ## 10. Change transactions and optimistic rendering
 
-All interaction methods produce the same semantic change type:
+All interaction methods produce a `CalendarEventProposal`. Once a proposal passes the policy
+pipeline, core materializes one `CalendarEventChange` variant for creation, update, or deletion.
+The change cause is deliberately small and matches `calendar-core/src/transactions/types.ts`:
 
 ```ts
-interface CalendarEventChange<TEvent, TResourceId extends ResourceId> {
-  id: string;
-  cause:
-    "create" | "move" | "resize-start" | "resize-end" | "resource-change" | "keyboard" | "editor";
-  event: TEvent | null;
-  original: CalendarEventPlacement | null;
-  proposed: CalendarEventPlacement;
-  validation: CalendarValidationResult;
-  sourceView: string;
-}
+type CalendarChangeCause =
+  | "create"
+  | "move"
+  | "resize-start"
+  | "resize-end"
+  | "update"
+  | "delete";
 
-type EventChangeHandler<TEvent> = (
-  change: CalendarEventChange<TEvent, ResourceId>,
-) => void | boolean | Promise<void | boolean>;
+type CalendarEventChangeHandler<TEvent> =
+  (change: CalendarEventChange<TEvent, EventId, ResourceId>) => void | Promise<void>;
 ```
 
 Lifecycle:
 
-1. Interaction session calculates a proposed placement without mutating the external event.
-2. Policy pipeline returns valid, invalid, or transformed placement.
+1. An interaction session calculates a proposed placement without mutating the external event.
+2. The policy pipeline accepts, rejects, or transforms the proposal.
 3. The view renders a transient preview.
-4. Drop/commit emits one typed transaction.
-5. Optimistic mode keeps a small patch visible while the handler settles.
-6. A matching external snapshot confirms it; rejection or error rolls it back.
-7. `onTransactionStateChange` exposes pending/confirmed/rejected state for advanced apps.
-
-The promise return is the DX path. An explicit transaction controller is available for applications whose persistence lifecycle cannot be represented by one promise.
+4. A committed proposal becomes one typed change and is passed to `onEventChange`.
+5. When the handler returns a promise, the small placement overlay remains visible through the
+   internal `getPending` store while persistence settles; synchronous handlers commit immediately.
+6. The promise resolves with a `CalendarTransactionResult`: `committed` on success, or `rejected`
+   with a reason when policy, validation, supersession, or the handler rejects the change.
+7. New application snapshots are reconciled with the pending overlay, confirming reflected
+   changes and removing settled entries. Pending state is internal; there is no public
+   `onTransactionStateChange` callback or separate transaction controller.
 
 ## 11. Drag, resize, selection, and creation
 
