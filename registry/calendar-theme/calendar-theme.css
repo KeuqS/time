@@ -34,6 +34,11 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
+  /*
+   * What the calendar sits on, behind sticky headers and gutters and between overlapping events.
+   * Unset, it is `--background` wherever it is used, so it follows a nested `.dark` too.
+   */
+  --color-calendar-surface: var(--calendar-surface, var(--background));
   --color-calendar-grid: var(--calendar-grid);
   --color-calendar-axis: var(--calendar-axis);
   --color-calendar-today: var(--calendar-today);
