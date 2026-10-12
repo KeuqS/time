@@ -35,20 +35,23 @@ published set, the `repository`, `homepage` and `bugs` fields, and that each tar
 | --- | --- | --- |
 | `@moltenship/calendar-temporal` | Engine: type-specific Temporal utilities | None |
 | `@moltenship/calendar-core` | Engine: snapshots, indexes, projections, layouts, and transactions | `calendar-temporal` |
-| `@moltenship/calendar-react` | React integration: provider, selectors, actions, and headless primitives | `calendar-core` |
-| `@moltenship/calendar-dnd` | Optional interaction adapter | `calendar-core`, `calendar-react` |
-| `@moltenship/calendar` | Supported public facade | `calendar-core`, `calendar-react` |
+| `@moltenship/calendar-react` | React integration: provider, selectors, actions, and headless primitives | `calendar-core`, `calendar-temporal` |
+| `@moltenship/calendar-dnd` | Optional interaction adapter | `calendar-core`, `calendar-temporal` |
+| `@moltenship/calendar` | Supported public facade | `calendar-core`, `calendar-dnd`, `calendar-react`, `calendar-temporal` |
 | `@moltenship/calendar-testing` | Consumer test helpers; private until after 1.0 (#45) | Public facade, dnd adapter, and Temporal utilities |
 | `@moltenship/calendar-recurrence` | Recurrence layer: RRULE expansion, occurrences, series edits (ADR 0048) | `calendar-core`, `calendar-temporal`, `ics` |
 | `@moltenship/ics` | Standalone iCalendar parsing (ADR 0151) | None |
-| `showcase` | Consumer-equivalent documentation and labs | Public facade and `@moltenship/ics` |
+| `showcase` | Consumer-equivalent documentation and labs | Public facade, `calendar-recurrence` and `@moltenship/ics` |
 | `ssr-fixture` | Consumer-equivalent SSR/hydration verification | Public facade only |
 | `fixtures` | Internal deterministic fixture generation | `calendar-core` |
-| `benchmark` | Internal core and React performance runners | Core, React bindings, and fixture tooling |
-| `registry` | Internal shadcn schema/build verification | None until the registry harness lands |
+| `benchmark` | Internal core and React performance runners | Core, React bindings, recurrence, Temporal utilities, and fixture tooling |
+| `demo` | The Google Calendar-style demo app | Public facade and `calendar-recurrence` |
+| `registry-source` | Registry source, type-checked and tested in place | Public facade only |
+| `registry` | Internal shadcn build, validation and install test (`tools/registry`) | None |
 
 External dependencies are added by the issue that validates their contract. React 19 is a
-`calendar-react` peer and Jotai 2 is its private runtime dependency after issue #25. The dnd-kit,
+`calendar-react` peer. `calendar-react` has no runtime dependency outside the workspace; it dropped
+Jotai in #70, which ADR 0025 doesn't say yet (#184). The dnd-kit,
 interval-tree, virtualization, and browser-test dependencies remain owned by their corresponding
 implementation or harness issues.
 
@@ -62,15 +65,18 @@ boundary.
 ```text
 calendar-temporal
        ↓
-calendar-core ───────→ fixtures ───────→ benchmark
-       ↓                                ↑
-calendar-react ─────────────────────────┘
-       ├────────────→ calendar-dnd
-       └────────────→ calendar (facade) ─────→ showcase / ssr-fixture
-                              ↓
-                      calendar-testing ← calendar-dnd / calendar-temporal
+calendar-core ───────────────→ fixtures ───────→ benchmark (also imports core and temporal)
+       ↓                                           ↑
+calendar-core + calendar-temporal → calendar-react ┘
+calendar-core + calendar-temporal → calendar-dnd
 
-calendar-core + calendar-temporal + ics ─────→ calendar-recurrence
+calendar-core + calendar-dnd + calendar-react + calendar-temporal
+       ↓
+calendar (facade) ─────→ showcase / ssr-fixture / demo / registry-source
+       ↓
+calendar-testing ← calendar-dnd / calendar-temporal
+
+calendar-core + calendar-temporal + ics ─────→ calendar-recurrence ─────→ showcase / demo / benchmark
 
 ics (standalone: no workspace imports, no runtime dependencies) ─────→ showcase
 ```
