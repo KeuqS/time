@@ -25,3 +25,36 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+# Pull requests
+
+## Screenshots
+
+PRs that change what users see carry screenshots in the PR description.
+
+- **Attach them with the GitHub CLI only**: `gh pr create --attach` or `gh pr edit --attach` (gh 2.101+). Reference each file in the body as `![alt](./file.png)`, and gh rewrites the reference to the uploaded asset. Don't commit screenshots to the repo or push them to asset branches such as `pr-assets/*`. Save them outside the repository so they never get committed.
+- Take them in a real browser, from the demo or the docs, not from mocks.
+- **UI fixes** (bug fixes, restyles, changed behaviour): a before/after table.
+
+  | | Before | After |
+  | --- | --- | --- |
+  | Week view, dark | ![Week view before, dark](./before-week-dark.png) | ![Week view after, dark](./after-week-dark.png) |
+
+- **New UI** (new features, views or parts): a light/dark table, or simply screenshots of the demo UI.
+
+  | | Light | Dark |
+  | --- | --- | --- |
+  | Year view | ![Year view, light](./year-light.png) | ![Year view, dark](./year-dark.png) |
+
+- PRs without visible UI changes need no screenshots.
+- Example of the table layout: https://github.com/Moltenship/time/pull/125
+
+```bash
+# body.md holds the table and references ./before-week-dark.png and ./after-week-dark.png
+gh pr create --title "…" --body-file body.md \
+  --attach './before-week-dark.png#Week view before, dark' \
+  --attach './after-week-dark.png#Week view after, dark'
+
+# Add or replace screenshots on an open PR
+gh pr edit 123 --body-file body.md --attach ./before.png --attach ./after.png
+```

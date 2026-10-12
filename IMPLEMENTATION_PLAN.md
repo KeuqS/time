@@ -79,7 +79,9 @@ Scope / Done when / Later before starting it.
   (locally while Actions is capped). The Vercel checks don't gate merges. When Vercel's daily deploy
   limit is hit, production catches up with the next deploy after it resets. Rebase on `main` first
   if behind.
-- UI changes include light and dark screenshots. Docs show live, theme-aware UI, not screenshots.
+- UI changes include screenshots attached with `gh pr create/edit --attach`, as described in
+  `AGENTS.md`: a before/after table for fixes, light/dark or demo screenshots for new UI. Docs show
+  live, theme-aware UI, not screenshots.
 - Keep native "blocked by" links and this file current when scope or order changes.
 
 ## Boundaries
