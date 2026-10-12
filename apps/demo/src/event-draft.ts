@@ -1,7 +1,8 @@
 import type { CalendarEventInterval } from "@moltenship/calendar";
 
-import type { DemoEvent } from "./calendar";
+import type { DemoEvent, DemoOccurrence } from "./calendar";
 import type { DemoCalendarId } from "./calendars";
+import { noRepeat, repeatFromRule, ruleFromRepeat, seriesDate, type RepeatDraft } from "./repeat";
 import type { DemoResourceId } from "./resources";
 
 /**
@@ -17,10 +18,18 @@ export interface EventDraft {
   /** The end's original UTC offset, which picks the same occurrence of a repeated wall time. */
   readonly endOffset?: string;
   readonly endTime: Temporal.PlainTime;
-  /** Set when editing an existing event. */
+  /** Set when editing an existing event: its ID in the calendar, an occurrence's for a series. */
   readonly id?: string;
+  /** The first day of the series an occurrence belongs to: the earliest it can stop repeating. */
+  readonly firstDate?: Temporal.PlainDate;
+  /** Set when editing an occurrence of a series, which saves through the scope dialog. */
+  readonly occurrence?: DemoOccurrence;
+  /** How the event repeats: the Repeat field. */
+  readonly repeat: RepeatDraft;
   /** Rooms and people the event books. */
   readonly resourceIds?: readonly DemoResourceId[];
+  /** The zone a timed series repeats in, which its end date is read in. */
+  readonly seriesTimeZone: string;
   readonly startDate: Temporal.PlainDate;
   /** The start's original UTC offset, which picks the same occurrence of a repeated wall time. */
   readonly startOffset?: string;
@@ -69,13 +78,33 @@ function intervalFields(interval: CalendarEventInterval, timeZone: string): Inte
   };
 }
 
-export function draftFromEvent(event: DemoEvent, timeZone: string): EventDraft {
+/**
+ * The editable form of what the calendar shows: a one-off event, or an occurrence of a series,
+ * at the occurrence's own time, with its series' rule in the Repeat field.
+ */
+export function draftFromOccurrence(occurrence: DemoOccurrence, timeZone: string): EventDraft {
+  const { event, interval, recurrence } = occurrence;
+  const series = recurrence?.series;
+  const seriesTimeZone = (series?.kind === "timed" ? series.sourceTimeZone : undefined) ?? timeZone;
   return {
-    ...intervalFields(event, timeZone),
+    ...intervalFields(interval, timeZone),
     calendarId: event.calendarId,
     description: event.description ?? "",
-    id: event.id,
+    id: occurrence.id,
+    ...(series === undefined ? {} : { firstDate: seriesDate(series, seriesTimeZone) }),
+    ...(recurrence === undefined ? {} : { occurrence }),
+    // Presets are named after the day the occurrence shows on, in the series' zone, as the Repeat
+    // field names them; an override moved off its rule's days reads as a custom rule.
+    repeat:
+      recurrence === undefined
+        ? noRepeat
+        : repeatFromRule(
+            series?.recurrence?.rule,
+            seriesDate(interval, seriesTimeZone),
+            seriesTimeZone,
+          ),
     resourceIds: event.resourceIds,
+    seriesTimeZone,
     title: event.title,
   };
 }
@@ -90,7 +119,9 @@ export function draftFromPlacement(
     ...intervalFields(placement, timeZone),
     calendarId,
     description: "",
+    repeat: noRepeat,
     resourceIds: placement.resourceIds,
+    seriesTimeZone: timeZone,
     title: "",
   };
 }
@@ -131,6 +162,8 @@ export function draftForNewEvent(
     description: "",
     endDate: end.toPlainDate(),
     endTime: end.toPlainTime(),
+    repeat: noRepeat,
+    seriesTimeZone: now.timeZoneId,
     startDate: start.toPlainDate(),
     startTime: start.toPlainTime(),
     title: "",
@@ -176,22 +209,46 @@ export function intervalFromDraft(
   return { end, kind: "timed", start };
 }
 
+/**
+ * The earliest day a draft's series can stop repeating: its first day, or for a new series the
+ * day it starts, in the zone it repeats in.
+ */
+export function repeatsFrom(draft: EventDraft, timeZone: string): Temporal.PlainDate {
+  if (draft.firstDate !== undefined) return draft.firstDate;
+  const interval = intervalFromDraft(draft, timeZone);
+  return "error" in interval ? draft.startDate : seriesDate(interval, draft.seriesTimeZone);
+}
+
 export function eventFromDraft(draft: EventDraft, timeZone: string, id: string): EventDraftResult {
   const title = draft.title.trim();
   if (title === "") return { error: "Add a title." };
   const interval = intervalFromDraft(draft, timeZone);
   if ("error" in interval) return interval;
 
+  const { end } = draft.repeat;
+  if (
+    draft.repeat.frequency !== "none" &&
+    end.type === "until" &&
+    Temporal.PlainDate.compare(end.date, repeatsFrom(draft, timeZone)) < 0
+  ) {
+    return { error: "The event stops repeating before it starts." };
+  }
+
   const description = draft.description.trim();
   const { resourceIds = [] } = draft;
+  const rule = ruleFromRepeat(draft.repeat, interval, draft.seriesTimeZone);
+  // A series repeats on the wall clock of the zone it was made in, across DST.
+  const zone = rule !== undefined && interval.kind === "timed" ? draft.seriesTimeZone : undefined;
   return {
     event: {
       calendarId: draft.calendarId,
       id,
       title,
       ...(description === "" ? {} : { description }),
+      ...(rule === undefined ? {} : { recurrence: { rule } }),
       ...(resourceIds.length === 0 ? {} : { resourceIds }),
       ...interval,
+      ...(zone === undefined ? {} : { sourceTimeZone: zone }),
     },
   };
 }
