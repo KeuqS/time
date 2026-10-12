@@ -16,6 +16,19 @@ packing, replacing that development entry with `dist/index.mjs` and `dist/index.
 `fixtures` workspace follows the same type-checking rule but keeps its runtime import on built
 `dist/`, which is the artifact consumed by `benchmark`.
 
+## Published packages
+
+Seven packages will publish to npm under `@moltenship`: `calendar`, `calendar-core`,
+`calendar-dnd`, `calendar-react`, `calendar-recurrence`, `calendar-temporal` and `ics`.
+`calendar-testing` is an empty stub and stays `private` until after 1.0 (#45).
+
+Every published package ships the root MIT `LICENSE`. pnpm adds it to a package's tarball when no
+packed file's path contains `license` or `licence`, in any case (`THIRD-PARTY-LICENSES.md` or
+`dist/licenses.mjs` would count), so don't give a packed file such a name. `npm pack` doesn't do
+this: pack with pnpm. `tests/package-metadata.test.ts` checks the
+published set, the `repository`, `homepage` and `bugs` fields, and that each tarball lists
+`LICENSE`.
+
 ## Workspace ownership
 
 | Workspace | Plane and ownership | Allowed workspace imports |
@@ -25,7 +38,7 @@ packing, replacing that development entry with `dist/index.mjs` and `dist/index.
 | `@moltenship/calendar-react` | React integration: provider, selectors, actions, and headless primitives | `calendar-core` |
 | `@moltenship/calendar-dnd` | Optional interaction adapter | `calendar-core`, `calendar-react` |
 | `@moltenship/calendar` | Supported public facade | `calendar-core`, `calendar-react` |
-| `@moltenship/calendar-testing` | Published consumer test helpers | Public facade, dnd adapter, and Temporal utilities |
+| `@moltenship/calendar-testing` | Consumer test helpers; private until after 1.0 (#45) | Public facade, dnd adapter, and Temporal utilities |
 | `@moltenship/calendar-recurrence` | Recurrence layer: RRULE expansion, occurrences, series edits (ADR 0048) | `calendar-core`, `calendar-temporal`, `ics` |
 | `@moltenship/ics` | Standalone iCalendar parsing (ADR 0151) | None |
 | `showcase` | Consumer-equivalent documentation and labs | Public facade and `@moltenship/ics` |
